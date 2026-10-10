@@ -1,46 +1,59 @@
-"""Lightweight local shape detailing on evaluated SMPL-X vertices.
-Experimental geometry-space preview, not semantic SMPL-X coefficients.
-All coordinates are model-local metres; no vertex indices or topology changes.
+"""Anatomically approximate localized body details for SMPL-X (preview only).
+
+Geometry-relative falloff (no hardcoded global Z side). Preserves vertex IDs.
+Not a substitute for rig-aware blendshapes.
 """
 import math
-
 DETAIL_KEYS=("breast_size","hip_width","glute_size")
 
 def deform(vertices, breast_size=0.0, hip_width=0.0, glute_size=0.0):
-    """Return new xyz tuples; zero controls preserve input exactly.
-
-    Assumes upright SMPL-X (+Y up, +Z front), with spatially smooth,
-    low-amplitude deformations. Do not use as rig-ready corrective shapes.
-    """
     controls=(breast_size,hip_width,glute_size)
-    if any(not isinstance(v,(float,int)) or isinstance(v,bool) or
+    if any(isinstance(v,bool) or not isinstance(v,(float,int)) or
            not math.isfinite(v) or abs(v)>1 for v in controls):
-        raise ValueError("Detail sliders must be finite values in [-1, 1]")
-    if not any(controls):
-        return [tuple(v) for v in vertices]
-    points=[tuple(v) for v in vertices]
-    if not points:return []
-    ys=[v[1] for v in points]
-    height=max(ys)-min(ys)
-    if height<=1e-8:return points
-    bottom=min(ys)
-    def bell(value,centre,sigma):
-        return math.exp(-0.5*((value-centre)/sigma)**2)
-    out=[]
+        raise ValueError("Detail values must be finite in [-1,1]")
+    points=[tuple(p) for p in vertices]
+    if not points or not any(controls):return points
+    bottom=min(p[1] for p in points)
+    height=max(p[1] for p in points)-bottom
+    if height<1e-8:return points
+    def gauss(t,center,width):
+        return math.exp(-.5*((t-center)/width)**2)
+    # Choose the front/back axis by measuring which side of the head
+    # protrudes farther from the head centre (nose). If the head is
+    # ambiguous, use SMPL-X's common +Z-facing convention.
+    head=[p[2] for p in points if (p[1]-bottom)/height>.85 and abs(p[0])<height*.055]
+    front=1
+    if len(head)>=20:
+        mid=(max(head)+min(head))*.5
+        front=1 if max(head)-mid >= mid-min(head) else -1
+        # extrema around midpoint are symmetric, use median instead.
+        head_sorted=sorted(head)
+        median=head_sorted[len(head_sorted)//2]
+        front=1 if max(head)-median>=median-min(head) else -1
+    # Chest / pelvis mid-depth estimated locally, not from world zero.
+    def centre_z(low,high):
+        candidates=[p[2] for p in points if low<(p[1]-bottom)/height<high and abs(p[0])<height*.075]
+        return sorted(candidates)[len(candidates)//2] if candidates else 0.0
+    chest_z=centre_z(.67,.75)
+    pelvis_z=centre_z(.39,.49)
+    result=[]
     for x,y,z in points:
-        ny=(y-bottom)/height
-        ax=abs(x)/height
-        nz=z/height
-        new_x,new_z=x,z
-        if breast_size and nz>0:
-            w=bell(ny,.705,.049)*bell(ax,.063,.043)*bell(nz,.075,.078)
-            new_z+=height*.020*breast_size*w
+        h=(y-bottom)/height
+        xx=abs(x)/height
+        chest_depth=front*(z-chest_z)/height
+        rear_depth=-front*(z-pelvis_z)/height
+        dx,dz=0.0,0.0
+        if breast_size:
+            w=gauss(h,.717,.067)*gauss(xx,.088,.070)
+            # Affect exposed front, not back. Soft falloff protects side seams.
+            depth_mask=max(0.0,min(1.0,(chest_depth+.012)/.07))
+            dz+=front*height*.058*breast_size*w*depth_mask
         if hip_width:
-            w=bell(ny,.445,.064)*bell(ax,.107,.075)
-            # gradual symmetric widening, avoiding movement of vertices on midline
-            new_x+=height*.014*hip_width*w*(1 if x>=0 else -1)*min(1,ax/.08)
-        if glute_size and nz<0:
-            w=bell(ny,.417,.060)*bell(ax,.065,.065)*bell(nz,-.063,.080)
-            new_z-=height*.021*glute_size*w
-        out.append((new_x,y,new_z))
-    return out
+            w=gauss(h,.447,.095)*gauss(xx,.13,.105)
+            dx+=math.copysign(1.0,x)*height*.042*hip_width*w*min(1.0,xx/.045) if x else 0
+        if glute_size:
+            w=gauss(h,.44,.075)*gauss(xx,.095,.085)
+            depth_mask=max(0.0,min(1.0,(rear_depth+.012)/.075))
+            dz-=front*height*.064*glute_size*w*depth_mask
+        result.append((x+dx,y,z+dz))
+    return result
