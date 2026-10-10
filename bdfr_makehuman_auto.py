@@ -35,6 +35,41 @@ def ensure_base_mesh():
         if tmp.exists():
             tmp.unlink()
 
+def clean_imported_helpers(namespace="BDFRMakeHuman", smooth_level=2):
+    """Remove OBJ reference-guide meshes, not actual Maya joints.
+    Only touches named MakeHuman meshes in the specified namespace.
+    """
+    prefix=namespace+":"
+    objects=cmds.ls(prefix+"*",type="transform",long=True) or []
+    bodies=[]
+    removed=[]
+    for node in sorted(objects,key=lambda n:n.count("|"),reverse=True):
+        if not cmds.objExists(node):
+            continue
+        short=node.split("|")[-1].split(":")[-1]
+        shapes=cmds.listRelatives(node,shapes=True,type="mesh",fullPath=True) or []
+        if not shapes:
+            continue
+        if short=="body":
+            bodies.append(node)
+        elif short.startswith(("helper_","joint_")):
+            cmds.delete(node)
+            removed.append(short)
+    if not bodies:
+        raise RuntimeError("The MakeHuman 'body' mesh was not found. Nothing else was modified.")
+    for body in bodies:
+        cmds.setAttr(body+".visibility",1)
+        for shape in cmds.listRelatives(body,shapes=True,type="mesh",fullPath=True) or []:
+            cmds.setAttr(shape+".displaySmoothMesh",2 if smooth_level else 0)
+            cmds.setAttr(shape+".smoothLevel",max(0,min(int(smooth_level),3)))
+            cmds.setAttr(shape+".renderSmoothLevel",max(0,min(int(smooth_level),3)))
+    cmds.select(bodies,replace=True)
+    cmds.viewFit()
+    print("[BDFR] body-only cleanup:",len(removed),"reference helpers removed.")
+    return {"bodies":bodies,"removed_helpers":removed,"smooth_preview":smooth_level,
+            "anatomy":"unmodified base mesh; anatomical morph targets not yet applied"}
+
+
 def create_real_body():
     """Import official base mesh and verify polygon counts. Maya may use scene units."""
     path=ensure_base_mesh()
@@ -54,19 +89,19 @@ def create_real_body():
         raise RuntimeError("Imported geometry is unexpectedly incomplete.")
     transforms=list(dict.fromkeys(cmds.listRelatives(
         shape,parent=True,fullPath=True)[0] for shape in new_shapes))
-    cmds.select(transforms,replace=True)
-    cmds.viewFit()
+    cleaned=clean_imported_helpers(namespace, smooth_level=2)
     result={"mesh_file":str(path),"meshes":len(new_shapes),
             "vertices":total_vertices,"faces":total_faces,
             "transforms":transforms}
-    print("[BDFR] MakeHuman CC0 base imported:",result)
+    result["cleanup"]=cleaned
+    print("[BDFR] MakeHuman CC0 body-only imported:",result)
     return result
 
 def launch():
     window="BDFRRealBodyLoader"
     if cmds.window(window,exists=True):
         cmds.deleteUI(window)
-    w=cmds.window(window,title="BDFR | Real MakeHuman Body v0.3.1",
+    w=cmds.window(window,title="BDFR | Real MakeHuman Body v0.3.2",
                   widthHeight=(440,185),sizeable=True)
     cmds.columnLayout(adjustableColumn=True,rowSpacing=12)
     cmds.text(label="OFFICIAL MAKEHUMAN BASE BODY",font="boldLabelFont",height=32)
