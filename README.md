@@ -1,3 +1,15 @@
+## v0.4.4 — Main Body Controls / Advanced Details
+
+The editor is now organized with **MAIN BODY CONTROLS** before the ten **ADVANCED DETAILS** SMPL-X beta sliders. Main controls include **Breast Size**, **Hip Width** and **Glute Size**, each ranging from -1 to +1 (0 = no extra shaping). They respond to Live editing and manual Apply. The profile is stored in JSON presets; old presets load with all three new controls set to zero.
+
+The three controls are **experimental localized vertex deformations applied after SMPL-X evaluation**, using smooth falloffs in SMPL-X local coordinates (+Y up, +Z front). This is NOT a native SMPL-X semantic breast/glute parameter, does not modify the licensed model, and is **not yet rig-safe**. Preview the front and rear in Maya before using large values. The modifier is regenerated from the original evaluated vertices for each Live update to avoid accumulation. Geometry is intended for future corrective blendshape work, not current Unreal skeletal export.
+
+Update from PowerShell: `git pull origin main`. In Maya, reload `bdfr_smplx_persistent` and `bdfr_smplx_editor`, and call `bdfr_smplx_editor.launch()`.
+
+Unit tests: `python -m unittest discover -s tests -v` (outside Maya). Maya 2027.2 visual test is still required.
+
+---
+
 ## v0.4.3 — Unreal-style A-Pose preview
 
 The existing v0.4 Live panel now includes **UNREAL A-POSE** and **RESET REST POSE** buttons. A-Pose sets the SMPL-X shoulder control to -35° (opposite sign on the mirrored shoulder via existing pose mapping), with elbows and hands neutral, and triggers an asynchronous mesh update. Rest Pose restores these pose sliders to zero. The shoulder slider range and preset validation are widened to ±60°, so presets can save A-Pose settings.
