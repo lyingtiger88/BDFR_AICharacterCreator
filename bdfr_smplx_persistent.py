@@ -34,6 +34,7 @@ class PersistentController(QtCore.QObject):
         self.morph_library={}
         self.morph_reference=None
         self.reference_key=None
+        self.last_joints=None
 
     def schedule(self):
         if self.closed:return
@@ -177,6 +178,11 @@ class PersistentController(QtCore.QObject):
         bbox=cmds.exactWorldBoundingBox(transform)
         cmds.move(0,-bbox[1],0,transform,relative=True,worldSpace=True)
         STATE["gender"]=gender
+        if result.get("joint_count")==22 and result.get("joints"):
+            raw=base64.b64decode(result["joints"])
+            if len(raw)==22*12:
+                vals=struct.unpack("<"+"f"*66,raw)
+                self.last_joints=[tuple(vals[i:i+3]) for i in range(0,66,3)]
         self.last_error=None
         print("[BDFR] SMPL-X engine: {} ms, {} verts".format(result["compute_ms"],n))
 
