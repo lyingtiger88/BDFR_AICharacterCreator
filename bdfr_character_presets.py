@@ -5,7 +5,7 @@ from pathlib import Path
 
 SCHEMA=1
 FIELDS=("shoulder","elbow","hand","expression")
-LIMITS={"shoulder":(-30,30),"elbow":(-60,60),"hand":(0,45),"expression":(-2,2)}
+LIMITS={"shoulder":(-60,60),"elbow":(-60,60),"hand":(0,45),"expression":(-2,2)}
 
 def validated(data):
     if not isinstance(data,dict) or data.get("schema")!=SCHEMA:
