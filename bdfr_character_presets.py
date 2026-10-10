@@ -5,6 +5,7 @@ from pathlib import Path
 
 SCHEMA=1
 FIELDS=("shoulder","elbow","hand","expression")
+DETAIL_LIMITS={"breast_size":(-1,1),"hip_width":(-1,1),"glute_size":(-1,1)}
 LIMITS={"shoulder":(-60,60),"elbow":(-60,60),"hand":(0,45),"expression":(-2,2)}
 
 def validated(data):
@@ -25,6 +26,12 @@ def validated(data):
         value=data.get(name)
         low,high=LIMITS[name]
         if isinstance(value,bool) or not isinstance(value,(float,int)) or not math.isfinite(value) or not low<=value<=high:
+            raise ValueError("Invalid "+name)
+        result[name]=float(value)
+    # Existing v0.4.2 presets remain valid; new controls default to zero.
+    for name,(low,high) in DETAIL_LIMITS.items():
+        value=data.get(name,0.0)
+        if isinstance(value,bool) or not isinstance(value,(int,float)) or not math.isfinite(value) or not low<=value<=high:
             raise ValueError("Invalid "+name)
         result[name]=float(value)
     return result
