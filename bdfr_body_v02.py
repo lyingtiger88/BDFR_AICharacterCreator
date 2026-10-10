@@ -1,158 +1,136 @@
-"""BDFR v0.2: ring-based organic proxy meshes for Autodesk Maya.
-Geometry is procedural (not a scanned or AI-reconstructed human).
+"""BDFR Character Creator 0.2.2 - reliable Maya native geometry body.
+All geometry is generated via maya.cmds, without OpenMaya mesh constructors.
+This is a procedural mannequin, not a photo-realistic anatomical reconstruction.
 """
 import math
 import maya.cmds as cmds
-from maya.api import OpenMaya as om
 
 ROOT = "BDFR_Character"
+VERSION = "0.2.2"
+EXPECTED = ("Torso","Pelvis","Neck","Head",
+            "L_UpperArm","L_Elbow","L_Forearm","L_Hand",
+            "L_Thigh","L_Knee","L_Shin","L_Foot",
+            "R_UpperArm","R_Elbow","R_Forearm","R_Hand",
+            "R_Thigh","R_Knee","R_Shin","R_Foot")
 
 
-def _skin(name, color):
-    if cmds.objExists(name):
-        return name
-    mat = cmds.shadingNode("lambert", asShader=True, name=name)
-    cmds.setAttr(mat + ".color", *color, type="double3")
-    sg = cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=name + "SG")
-    cmds.connectAttr(mat + ".outColor", sg + ".surfaceShader", force=True)
-    return mat
-
-
-def _mesh(name, rings, parent, shader, sides=24, cap=True):
-    """Smooth mesh from successive elliptical cross sections.
-    Each ring: (center xyz, radii xyz); cross-section plane perpendicular to Y.
-    """
-    vertices = []
-    for ((cx,cy,cz),(rx,_,rz)) in rings:
-        for j in range(sides):
-            a = 2.0 * math.pi * j / sides
-            vertices.append(om.MPoint(cx + rx*math.cos(a), cy, cz + rz*math.sin(a)))
-    counts, indices = [], []
-    for i in range(len(rings)-1):
-        for j in range(sides):
-            k = (j+1)%sides
-            indices.extend((i*sides+j, i*sides+k, (i+1)*sides+k, (i+1)*sides+j))
-            counts.append(4)
-    if cap:
-        indices.extend(reversed(range(sides)))
-        counts.append(sides)
-        indices.extend((len(rings)-1)*sides+j for j in range(sides))
-        counts.append(sides)
-    fn = om.MFnMesh()
-    obj = fn.create(vertices, counts, indices)
-    shape = om.MFnDagNode(obj)
-    transform = om.MFnDagNode(shape.parent(0))
-    transform.setName(name)
-    path = transform.fullPathName()
-    path = cmds.parent(path, parent)[0]
-    cmds.polySoftEdge(path, angle=180, constructionHistory=False)
-    sg = cmds.listConnections(shader, type="shadingEngine") or []
-    if sg:
-        cmds.sets(path, edit=True, forceElement=sg[0])
-    return path
-
-
-def _outline(name, stations, parent, shader, sides=32):
-    return _mesh(name, [((x,y,z),(rx,0,rz)) for y,x,z,rx,rz in stations],
-                 parent, shader, sides)
-
-
-def _limb(name, anchors, widths, parent, shader, sides=20):
-    """Swept limbs: circular-ish sections remain horizontal; approximation only."""
-    rings = []
-    for (x,y,z), (rx,rz) in zip(anchors,widths):
-        rings.append(((x,y,z),(rx,0,rz)))
-    return _mesh(name,rings,parent,shader,sides)
+def _material():
+    name="BDFR_Skin_022"
+    if not cmds.objExists(name):
+        shader=cmds.shadingNode("lambert",asShader=True,name=name)
+        cmds.setAttr(shader+".color",0.60,0.39,0.29,type="double3")
+        group=cmds.sets(renderable=True,noSurfaceShader=True,empty=True,name=name+"SG")
+        cmds.connectAttr(shader+".outColor",group+".surfaceShader",force=True)
+    return cmds.listConnections(name+".outColor",type="shadingEngine")[0]
 
 
 def build(height=175., shoulders=1., waist=1., hips=1., muscle=1.,
           head=1., physique="Neutral"):
-    """Build anatomically suggestive, editable independent surfaces in cm."""
-    height=float(height)
-    if not 120 <= height <= 230:
-        raise ValueError("Height must be within 120..230 cm")
-    for x in (shoulders,waist,hips,muscle,head):
-        if not 0.5 <= float(x) <= 2.0:
-            raise ValueError("Invalid morphology parameter")
+    """Return generated root after asserting every named limb exists."""
+    vals=(height,shoulders,waist,hips,muscle,head)
+    if not all(isinstance(x,(int,float)) and math.isfinite(x) for x in vals):
+        raise ValueError("BDFR: parameters must be finite numbers")
+    if not 130 <= height <= 220 or any(not 0.5 <= x <= 2 for x in vals[1:]):
+        raise ValueError("BDFR: parameter outside supported range")
+    preset={"Neutral":(1.,1.),"Broad":(1.12,0.96),"Curvy":(0.94,1.12)}
+    sh,hi=preset.get(physique,(1.,1.))
+    shoulder=shoulders*sh
+    hip=hips*hi
     if cmds.objExists(ROOT):
         cmds.delete(ROOT)
-    root=cmds.group(empty=True,name=ROOT)
-    group=cmds.group(empty=True,name="Body_Surface_GRP",parent=root)
-    skin=_skin("BDFR_v02_Skin", (0.57,0.34,0.24))
-    eye=_skin("BDFR_v02_Eyes", (0.08,0.10,0.12))
-    # Physique affects proportions, not a sex-specific anatomical assertion.
-    profile={"Neutral":(1.,1.), "Broad":(1.12,0.95), "Curvy":(0.93,1.12)}
-    sh,hi=profile.get(physique,profile["Neutral"])
-    sw=shoulders*sh
-    hw=hips*hi
-    w=waist
-    m=muscle
-    _outline("Body_Torso",[
-      (80,0,0,13*w,9*w),(85,0,0,17*hw,11*hw),
-      (94,0,0,19*hw,12*hw),(101,0,0,16*w,10*w),
-      (110,0,0,15*w,10*w),(120,0,0,18*sw,12*sw),
-      (130,0,0,23*sw,13*sw),(138,0,0,24*sw,12*sw),
-      (144,0,0,20*sw,10*sw),(150,0,0,9,7),
-      (154,0,0,6,6)],group,skin)
-    _outline("Head_Organic",[
-      (151,0,0,5*head,5*head),(154,0,1,8*head,7*head),
-      (158,0,1,9*head,8*head),(164,0,0,10*head,9*head),
-      (170,0,-0.4,10.5*head,9.5*head),
-      (176,0,-0.5,9*head,9*head),(179,0,-1,6*head,7*head),
-      (180,0,-1,1*head,1*head)],group,skin)
-    # Robust native primitives: reliable meshes independent of MFnMesh ring normals.
-    def sphere(name, xyz, scale):
-        obj=cmds.polySphere(name=name, radius=1, subdivisionsX=20,
-                            subdivisionsY=16, constructionHistory=False)[0]
-        cmds.parent(obj,group)
-        cmds.setAttr(obj+".translate", *xyz, type="double3")
-        cmds.setAttr(obj+".scale", *scale, type="double3")
-        cmds.sets(obj, edit=True, forceElement=cmds.listConnections(
-            skin,type="shadingEngine")[0])
+    root=cmds.group(em=True,name=ROOT)
+    mesh_group=cmds.group(em=True,name="BDFR_Meshes",parent=root)
+    material=_material()
+    made={}
+
+    def ellipsoid(label,center,radii):
+        obj=cmds.polySphere(name="BDFR_"+label,radius=1,
+                            subdivisionsX=24,subdivisionsY=18,
+                            constructionHistory=False)[0]
+        obj=cmds.parent(obj,mesh_group)[0]
+        cmds.xform(obj,objectSpace=True,translation=center)
+        cmds.setAttr(obj+".scale",*radii,type="double3")
+        cmds.sets(obj,e=True,forceElement=material)
+        made[label]=obj
         return obj
 
-    def link(name, p1, p2, thickness):
+    def bone(label,start,finish,radius):
+        # Stable cylinder alignment via Maya's native aimConstraint.
+        dx=finish[0]-start[0];dy=finish[1]-start[1];dz=finish[2]-start[2]
+        length=math.sqrt(dx*dx+dy*dy+dz*dz)
+        if length < 1e-5:
+            raise ValueError("Zero-length limb: "+label)
+        obj=cmds.polyCylinder(name="BDFR_"+label,radius=radius,
+                              height=length,subdivisionsAxis=20,
+                              constructionHistory=False)[0]
+        obj=cmds.parent(obj,mesh_group)[0]
+        center=tuple((start[i]+finish[i])/2 for i in range(3))
+        cmds.xform(obj,worldSpace=True,translation=center)
+        # Rotate local +Y towards the limb using the Maya API quaternion;
+        # all meshes themselves remain cmds primitives.
         from maya.api import OpenMaya as om
-        a=om.MVector(*p1); b=om.MVector(*p2)
-        direction=b-a
-        obj=cmds.polyCylinder(name=name, radius=1, height=1,
-                              subdivisionsAxis=20, constructionHistory=False)[0]
-        cmds.parent(obj,group)
-        mid=(a+b)*0.5
-        cmds.setAttr(obj+".translate",mid.x,mid.y,mid.z,type="double3")
-        rot=om.MVector(0,1,0).rotateTo(direction.normal()).asEulerRotation()
-        cmds.setAttr(obj+".rotate",math.degrees(rot.x),math.degrees(rot.y),
-                     math.degrees(rot.z),type="double3")
-        cmds.setAttr(obj+".scale",thickness,direction.length(),thickness,
+        q=om.MVector(0,1,0).rotateTo(om.MVector(dx,dy,dz).normal())
+        e=q.asEulerRotation()
+        cmds.setAttr(obj+".rotate",*[math.degrees(v) for v in (e.x,e.y,e.z)],
                      type="double3")
-        cmds.sets(obj,edit=True,forceElement=cmds.listConnections(
-            skin,type="shadingEngine")[0])
+        cmds.sets(obj,e=True,forceElement=material)
+        made[label]=obj
         return obj
 
-    required=[]
-    for side,label in ((-1,"L"),(1,"R")):
-        shoulder=(side*24*sw,142,0)
-        elbow=(side*31*sw,110,0)
-        wrist=(side*34*sw,84,3)
-        hip=(side*11*hw,88,0)
-        knee=(side*12*hw,50,1)
-        ankle=(side*12*hw,11,0)
-        required.extend([
-            link(label+"_UpperArm",shoulder,elbow,6.8*m),
-            sphere(label+"_Elbow",elbow,(5.4*m,5.4*m,5.4*m)),
-            link(label+"_Forearm",elbow,wrist,4.8*m),
-            sphere(label+"_Hand",(wrist[0],78,3),(4.2,7.5,2.8)),
-            link(label+"_Thigh",hip,knee,9.2*hw*m),
-            sphere(label+"_Knee",knee,(7.3,7.3,7.3)),
-            link(label+"_Shin",knee,ankle,6.3*m),
-            sphere(label+"_Foot",(ankle[0],5,8),(7,4.5,15)),
-        ])
-    if len(required)!=16 or not all(cmds.objExists(node) for node in required):
-        raise RuntimeError("BDFR body generation incomplete: limbs missing")
-    s=height/175.
-    cmds.setAttr(group+".scale",s,s,s,type="double3")
-    cmds.addAttr(root,longName="bdfrGenerator",dataType="string")
-    cmds.setAttr(root+".bdfrGenerator","organic-proxy-v0.2.1",type="string")
-    cmds.select(root,replace=True)
-    cmds.viewFit()
-    return root
+    try:
+        ellipsoid("Pelvis",(0,91,0),(18*hip,14,12*hip))
+        ellipsoid("Torso",(0,123,0),(23*shoulder,31,13*waist))
+        ellipsoid("Neck",(0,151,0),(6,8,6))
+        ellipsoid("Head",(0,167,0),(10*head,13*head,9*head))
+        for sign,side in ((-1,"L"),(1,"R")):
+            shoulder_joint=(sign*23*shoulder,141,0)
+            elbow=(sign*31*shoulder,112,0)
+            wrist=(sign*34*shoulder,88,2)
+            h=(sign*11*hip,87,0)
+            knee=(sign*12*hip,49,1)
+            ankle=(sign*12*hip,11,0)
+            bone(side+"_UpperArm",shoulder_joint,elbow,6.6*muscle)
+            ellipsoid(side+"_Elbow",elbow,(5.2,5.2,5.2))
+            bone(side+"_Forearm",elbow,wrist,4.7*muscle)
+            ellipsoid(side+"_Hand",(wrist[0],82,2),(4,8,3))
+            bone(side+"_Thigh",h,knee,9*hip*muscle)
+            ellipsoid(side+"_Knee",knee,(7.5,7.5,7.5))
+            bone(side+"_Shin",knee,ankle,6.2*muscle)
+            ellipsoid(side+"_Foot",(ankle[0],5,9),(7,5,15))
+        missing=[name for name in EXPECTED
+                 if name not in made or not cmds.objExists(made[name])]
+        if missing:
+            raise RuntimeError("Missing mesh members: "+", ".join(missing))
+        # Check each member is within our character hierarchy and has a mesh shape.
+        for label,obj in made.items():
+            if not cmds.listRelatives(obj,shapes=True,type="mesh"):
+                raise RuntimeError("No polygon mesh for: "+label)
+            parent=cmds.listRelatives(obj,parent=True,fullPath=True) or []
+            if not parent or not parent[0].endswith("|BDFR_Meshes"):
+                raise RuntimeError("Unexpected mesh hierarchy: "+label)
+        scale=float(height)/175.
+        cmds.setAttr(mesh_group+".scale",scale,scale,scale,type="double3")
+        cmds.addAttr(root,longName="bdfrGeneratorVersion",dataType="string")
+        cmds.setAttr(root+".bdfrGeneratorVersion",VERSION,type="string")
+        cmds.select(root,r=True)
+        cmds.viewFit()
+        cmds.inViewMessage(amg="BDFR v0.2.2: <hl>20 parts generated</hl>",
+                           pos="midCenter",fade=True)
+        print("[BDFR] PASS - generated {} required body parts, v{}".format(
+              len(EXPECTED),VERSION))
+        return root
+    except Exception:
+        print("[BDFR] FAILED - body generator stopped; see Python traceback.")
+        if cmds.objExists(root):
+            cmds.delete(root)
+        raise
+
+
+def diagnose():
+    """A quick command-line report after clicking Generate."""
+    found=cmds.ls("BDFR_*",type="transform",long=True) or []
+    missing=[s for s in EXPECTED if not cmds.objExists("BDFR_"+s)]
+    result={"version":VERSION,"required":len(EXPECTED),
+            "missing":missing,"found":len(found)}
+    print("[BDFR] Diagnostic:",result)
+    return result
