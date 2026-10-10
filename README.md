@@ -1,3 +1,22 @@
+## Live preview update (v0.4 Live)
+
+In Maya Python Script Editor, after `git pull origin main`:
+
+```python
+import sys, importlib
+sys.path.insert(0, r"D:\\Projects\\BDFR_AICharacterCreator")
+import bdfr_smplx_live, bdfr_smplx_editor
+importlib.reload(bdfr_smplx_live)
+importlib.reload(bdfr_smplx_editor)
+bdfr_smplx_editor.launch()
+```
+
+The 10 beta sliders now have **descriptive, experimental names** based on visual tests (not official anatomical axis names). Drag and change callbacks trigger a debounced 200ms external process; each evaluation updates the **existing** Maya mesh without a manual Apply click. A pending/latest slider state supersedes earlier requests. Maya remains responsive while the separate Python process computes. Each update may still take seconds depending on CPU and model load; this is **asynchronous live preview**, not guaranteed 60 FPS manipulation. Apply remains available as a manual fallback.
+
+The first slider direction was observed for the **neutral model with beta01 -3**, so names/effects are exploratory and may differ for Male/Female. No licensed SMPL-X data should be committed to this public repository. Changes in this update are source-level only and await a Maya 2027.2 runtime test.
+
+---
+
 # BDFR AI Character Creator — v0.4 Parametric SMPL-X milestone
 
 This Maya project integrates **MakeHuman**, **SMPL-X**, **EOS**, and **mGear**. As of this milestone, the SMPL-X component can evaluate *real licensed weights* in an external Python environment and update an existing Maya mesh **in place**.
