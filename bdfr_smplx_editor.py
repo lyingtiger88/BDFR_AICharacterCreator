@@ -110,7 +110,7 @@ def launch():
     if cmds.window(WINDOW,exists=True):
         cmds.deleteUI(WINDOW)
     cfg=load_config()
-    win=cmds.window(WINDOW,title="BDFR SMPL-X Parametric Editor v0.4.4 Body Details",
+    win=cmds.window(WINDOW,title="BDFR SMPL-X Parametric Editor v0.4.5 Sculpt Morphs",
                     sizeable=True,widthHeight=(490,625))
     cmds.scrollLayout(childResizable=True)
     cmds.columnLayout(adjustableColumn=True,rowSpacing=7)
@@ -123,7 +123,7 @@ def launch():
         cmds.menuItem(label=label)
     cmds.separator(style="in")
     cmds.text(label="MAIN BODY CONTROLS",font="boldLabelFont")
-    cmds.text(label="Local mesh shaping (experimental preview; -1 to +1)")
+    cmds.text(label="Sculpted morph targets only (no automatic balloon deformation)")
     breast=cmds.floatSliderGrp(label="Breast Size",field=True,minValue=-1,maxValue=1,value=0)
     hips=cmds.floatSliderGrp(label="Hip Width",field=True,minValue=-1,maxValue=1,value=0)
     glutes=cmds.floatSliderGrp(label="Glute Size",field=True,minValue=-1,maxValue=1,value=0)
@@ -157,14 +157,6 @@ def launch():
         beta,s,e,h,ex=values()
         try:
             apply(p,m,g,beta,s,e,h,ex)
-            from bdfr_body_details import deform
-            fn=_shape(TARGET)
-            raw=[(v.x,v.y,v.z) for v in fn.getPoints(om.MSpace.kObject)]
-            detailed=deform(raw,
-                cmds.floatSliderGrp(breast,q=True,value=True),
-                cmds.floatSliderGrp(hips,q=True,value=True),
-                cmds.floatSliderGrp(glutes,q=True,value=True))
-            fn.setPoints([om.MPoint(*v) for v in detailed],om.MSpace.kObject)
             print("[BDFR] SMPL-X parametric update succeeded:",g)
         except Exception as err:
             cmds.confirmDialog(title="BDFR SMPL-X error",message=str(err),button=["OK"])
@@ -185,6 +177,96 @@ def launch():
             "hip_width":cmds.floatSliderGrp(hips,q=True,value=True),
             "glute_size":cmds.floatSliderGrp(glutes,q=True,value=True)})
     STATE["live_controller"]=live
+    # Sculpt workflow. Capture a base, duplicate and sculpt the mesh (same
+    # topology); save the sculpt as a sparse morph for this exact shape/pose.
+    morph_state={"base":None,"reference":None,"folder":None}
+    def mesh_points(node):
+        fn=_shape(node)
+        return [(p.x,p.y,p.z) for p in fn.getPoints(om.MSpace.kObject)]
+    def ref_key():
+        return live._shape_key(live.settings())
+    def capture_base(*_):
+        if not cmds.objExists(TARGET):
+            cmds.warning("[BDFR Morph] Generate a character first")
+            return
+        if any(abs(v)>1e-8 for v in (cmds.floatSliderGrp(breast,q=True,value=True),
+                cmds.floatSliderGrp(hips,q=True,value=True),
+                cmds.floatSliderGrp(glutes,q=True,value=True))):
+            cmds.warning("[BDFR Morph] Set all three detail sliders to zero first")
+            return
+        morph_state["base"]=mesh_points(TARGET)
+        morph_state["reference"]=ref_key()
+        print("[BDFR Morph] Base captured. Duplicate mesh, sculpt the duplicate, then capture sculpt.")
+    def capture_sculpt(*_):
+        from bdfr_morph_targets import author,save,load_folder
+        if morph_state["base"] is None:
+            cmds.warning("[BDFR Morph] Capture base first")
+            return
+        if ref_key()!=morph_state["reference"]:
+            cmds.warning("[BDFR Morph] Shape or pose changed since base capture")
+            return
+        selected=cmds.ls(selection=True,type="transform",long=True) or []
+        if len(selected)!=1 or selected[0].split("|")[-1]==TARGET:
+            cmds.warning("[BDFR Morph] Select one separate sculpted mesh, NOT the live body")
+            return
+        key=cmds.optionMenu(morph_key,q=True,value=True)
+        direction=cmds.optionMenu(morph_direction,q=True,value=True)
+        folder=morph_state["folder"]
+        if not folder:
+            paths=cmds.fileDialog2(fileMode=3,caption="Choose morph library folder")
+            if not paths:return
+            folder=paths[0]
+        try:
+            from pathlib import Path
+            import json
+            folder_path=Path(folder)
+            profile=folder_path/"reference.json"
+            expected=list(morph_state["reference"])
+            if profile.exists():
+                saved=json.loads(profile.read_text(encoding="utf-8"))
+                if saved.get("shape_key")!=expected:
+                    raise ValueError("Folder reference differs: choose another folder")
+            morph=author(morph_state["base"],mesh_points(selected[0]),key,direction)
+            save(folder_path/(key+"_"+direction+".json"),morph)
+            if not profile.exists():
+                profile.write_text(json.dumps({"shape_key":expected}),encoding="utf-8")
+            morph_state["folder"]=folder
+            live.install_library(load_folder(folder),morph_state["reference"])
+            print("[BDFR Morph] Saved",key,direction,"vertices",len(morph["offsets"]))
+        except Exception as exc:
+            cmds.warning("[BDFR Morph] "+str(exc))
+    def load_morphs(*_):
+        from bdfr_morph_targets import load_folder
+        import json
+        from pathlib import Path
+        paths=cmds.fileDialog2(fileMode=3,caption="Load sculpted morph library")
+        if not paths:return
+        folder=Path(paths[0])
+        try:
+            reference=json.loads((folder/"reference.json").read_text(encoding="utf-8"))["shape_key"]
+            # JSON arrays need recursive tuple conversion.
+            key=(reference[0],tuple(reference[1]),*reference[2:])
+            if key!=ref_key():
+                raise ValueError("Morph library reference does not match current shape / pose")
+            library=load_folder(folder)
+            live.install_library(library,key)
+            morph_state["folder"]=str(folder)
+            print("[BDFR Morph] Loaded",len(library),"sculpted targets")
+        except Exception as exc:
+            cmds.warning("[BDFR Morph] "+str(exc))
+    cmds.text(label="MORPH AUTHORING  |  Artist sculpt required",font="boldLabelFont")
+    cmds.rowLayout(numberOfColumns=2,adjustableColumn=1,columnWidth2=(235,235))
+    cmds.button(label="1. CAPTURE BASE",command=capture_base)
+    cmds.button(label="2. LOAD MORPH LIBRARY",command=load_morphs)
+    cmds.setParent("..")
+    morph_key=cmds.optionMenu(label="Sculpt channel")
+    for name in ("breast_size","hip_width","glute_size"):
+        cmds.menuItem(label=name)
+    morph_direction=cmds.optionMenu(label="Sculpt direction")
+    for name in ("positive","negative"):
+        cmds.menuItem(label=name)
+    cmds.button(label="3. CAPTURE SELECTED SCULPT",height=32,command=capture_sculpt)
+
     for control in [breast,hips,glutes]+sliders+[shoulder,elbow,hand,smile]:
         cmds.floatSliderGrp(control,e=True,dragCommand=lambda *_:live.schedule(),
                             changeCommand=lambda *_:live.schedule())
@@ -254,7 +336,7 @@ def launch():
     cmds.text(label="Live enabled: edits trigger a 90ms debounce; SMPL-X weights stay loaded in external Python.")
     cmds.button(label="APPLY TO EXISTING CHARACTER",height=42,command=lambda *_:call(False))
     cmds.button(label="NEW CHARACTER / CHANGE GENDER",height=34,command=lambda *_:call(True))
-    cmds.text(label="Main controls reshape evaluated mesh locally; experimental, not rig-ready.")
+    cmds.text(label="Detail sliders require matching artist-sculpted morphs; otherwise no-op.")
     cmds.text(label="10 shape coefficients are PCA dimensions, not labeled anatomical controls.")
     cmds.text(label="First expression coefficient is not guaranteed to be a smile.")
     cmds.text(label="Beta names are observed tendencies, not isolated anatomical controls.")
