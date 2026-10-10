@@ -11,7 +11,7 @@ import maya.cmds as cmds
 
 WINDOW = "BDFR_AICharacterCreator"
 ROOT = "BDFR_Character"
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 
 
 def _material(name, rgb):
@@ -181,21 +181,26 @@ def show():
     return window
 
 
-# ---- v0.2.1 corrected body UI ----
+# ---- v0.2.2 corrected body UI ----
 
 def _create_v02(*_):
     from bdfr_body_v02 import build
     profile = cmds.optionMenu("bdfrPhysiqueV02", q=True, value=True)
     values = [cmds.floatSliderGrp("bdfrV02_"+key, q=True, value=True)
               for key in ("height","shoulders","waist","hips","muscle","head")]
-    result=build(*values,physique=profile)
-    cmds.inViewMessage(amg="BDFR v0.2 body created: "+result,
-                       pos="midCenter",fade=True)
+    try:
+        result=build(*values,physique=profile)
+        cmds.inViewMessage(amg="BDFR v0.2.2 body created: "+result,
+                           pos="midCenter",fade=True)
+    except Exception as exc:
+        cmds.confirmDialog(title="BDFR build error", message=str(exc),
+                           button=["OK"])
+        raise
 
 
 def _build_v02_ui():
     cmds.columnLayout(adjustableColumn=True,rowSpacing=8)
-    cmds.text(label="BDFR AI CHARACTER CREATOR  |  v0.2.1",height=30,font="boldLabelFont")
+    cmds.text(label="BDFR AI CHARACTER CREATOR  |  v0.2.2",height=30,font="boldLabelFont")
     cmds.text(label="Procedural organic prototype — no photo fitting yet")
     cmds.separator(style="in")
     options=(("height","Height (cm)",130,220,175),
@@ -231,7 +236,7 @@ def show(dock=False):
         return panel
     if cmds.window(WINDOW,exists=True):
         cmds.deleteUI(WINDOW)
-    window=cmds.window(WINDOW,title="BDFR AI Character Creator | v0.2.1",
+    window=cmds.window(WINDOW,title="BDFR AI Character Creator | v0.2.2",
                        widthHeight=(405,480),sizeable=True)
     _build_v02_ui()
     cmds.showWindow(window)
