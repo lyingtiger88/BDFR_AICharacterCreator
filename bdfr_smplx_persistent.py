@@ -30,6 +30,7 @@ class PersistentController(QtCore.QObject):
         self.request_id=0
         self.closed=False
         self.active_request_id=None
+        self.sent_details=(0.0,0.0,0.0)
 
     def schedule(self):
         if self.closed:return
@@ -87,6 +88,7 @@ class PersistentController(QtCore.QObject):
                  "right_hand":hand,"expression":[data["expression"]]}
         payload=(json.dumps(request,separators=(",",":"))+"\n").encode("utf-8")
         self.process.write(payload)
+        self.sent_details=(data.get("breast_size",0.0),data.get("hip_width",0.0),data.get("glute_size",0.0))
         self.sent_revision=self.revision
         self.active_request_id=self.request_id
         self.pending=False
@@ -127,8 +129,10 @@ class PersistentController(QtCore.QObject):
         if n!=10475 or len(vertices)!=n*12 or len(faces_raw)!=face_count*12:
             raise ValueError("Unexpected SMPL-X geometry buffer dimensions")
         floats=struct.unpack("<"+"f"*(n*3),vertices)
-        points=[om.MPoint(floats[i],floats[i+1],floats[i+2])
-                for i in range(0,n*3,3)]
+        from bdfr_body_details import deform
+        raw_points=((floats[i],floats[i+1],floats[i+2]) for i in range(0,n*3,3))
+        detailed=deform(raw_points,*self.sent_details)
+        points=[om.MPoint(*xyz) for xyz in detailed]
         gender=result["gender"]
         if cmds.objExists(TARGET) and STATE.get("gender") not in (None,gender):
             cmds.delete(TARGET)
