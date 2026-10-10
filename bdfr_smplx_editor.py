@@ -104,10 +104,13 @@ def apply_exported(gender):
     return TARGET
 
 def launch():
+    if STATE.get("live_controller"):
+        STATE["live_controller"].close()
+        STATE["live_controller"]=None
     if cmds.window(WINDOW,exists=True):
         cmds.deleteUI(WINDOW)
     cfg=load_config()
-    win=cmds.window(WINDOW,title="BDFR SMPL-X Parametric Editor v0.4 Live",
+    win=cmds.window(WINDOW,title="BDFR SMPL-X Parametric Editor v0.4.1 Persistent",
                     sizeable=True,widthHeight=(490,625))
     cmds.scrollLayout(childResizable=True)
     cmds.columnLayout(adjustableColumn=True,rowSpacing=7)
@@ -152,8 +155,8 @@ def launch():
             cmds.confirmDialog(title="BDFR SMPL-X error",message=str(err),button=["OK"])
             raise
     # QProcess worker: model evaluation never blocks Maya's UI thread.
-    from bdfr_smplx_live import LiveController
-    live=LiveController(WINDOW,
+    from bdfr_smplx_persistent import PersistentController
+    live=PersistentController(WINDOW,
         lambda: {
             "python":cmds.textFieldGrp(py,q=True,text=True),
             "models":cmds.textFieldGrp(models,q=True,text=True),
@@ -168,7 +171,7 @@ def launch():
         cmds.floatSliderGrp(control,e=True,dragCommand=lambda *_:live.schedule(),
                             changeCommand=lambda *_:live.schedule())
     cmds.optionMenu(option,e=True,changeCommand=lambda *_:live.schedule())
-    cmds.text(label="Live enabled: edits trigger a 200ms debounced asynchronous refresh.")
+    cmds.text(label="Live enabled: edits trigger a 90ms debounce; SMPL-X weights stay loaded in external Python.")
     cmds.button(label="APPLY TO EXISTING CHARACTER",height=42,command=lambda *_:call(False))
     cmds.button(label="NEW CHARACTER / CHANGE GENDER",height=34,command=lambda *_:call(True))
     cmds.text(label="10 shape coefficients are PCA dimensions, not labeled anatomical controls.")
