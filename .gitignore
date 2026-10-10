@@ -9,3 +9,7 @@ dist/
 *.obj
 *.mtl
 *.log
+
+# Licensed external SMPL-X model weights, do not publish
+/models/
+/.venv_smplx/
