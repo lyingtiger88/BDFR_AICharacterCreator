@@ -31,6 +31,9 @@ class PersistentController(QtCore.QObject):
         self.closed=False
         self.active_request_id=None
         self.sent_details=(0.0,0.0,0.0)
+        self.morph_library={}
+        self.morph_reference=None
+        self.reference_key=None
 
     def schedule(self):
         if self.closed:return
@@ -89,6 +92,7 @@ class PersistentController(QtCore.QObject):
         payload=(json.dumps(request,separators=(",",":"))+"\n").encode("utf-8")
         self.process.write(payload)
         self.sent_details=(data.get("breast_size",0.0),data.get("hip_width",0.0),data.get("glute_size",0.0))
+        self.sent_shape_key=self._shape_key(data)
         self.sent_revision=self.revision
         self.active_request_id=self.request_id
         self.pending=False
@@ -118,6 +122,19 @@ class PersistentController(QtCore.QObject):
                 cmds.warning("[BDFR persistent] "+str(exc)[:450])
             if self.pending:self.timer.start(0)
 
+    @staticmethod
+    def _shape_key(data):
+        # Morphs authored for a specific exact SMPL-X reference. Prevent
+        # transplanting deltas onto unrelated shapes or poses.
+        return (data["gender"],tuple(round(float(v),5) for v in data["betas"]),
+                round(float(data["shoulder"]),5),round(float(data["elbow"]),5),
+                round(float(data["hand"]),5),round(float(data["expression"]),5))
+
+    def install_library(self, library, reference):
+        self.morph_library=library
+        self.reference_key=reference
+        self.schedule()
+
     def _apply(self, result):
         import maya.cmds as cmds
         from maya.api import OpenMaya as om
@@ -129,13 +146,17 @@ class PersistentController(QtCore.QObject):
         if n!=10475 or len(vertices)!=n*12 or len(faces_raw)!=face_count*12:
             raise ValueError("Unexpected SMPL-X geometry buffer dimensions")
         floats=struct.unpack("<"+"f"*(n*3),vertices)
-        from bdfr_body_details import deform
-        raw_points=((floats[i],floats[i+1],floats[i+2]) for i in range(0,n*3,3))
-        raw_points=list(raw_points)
-        detailed=deform(raw_points,*self.sent_details)
-        max_delta=max((math.dist(a,b) for a,b in zip(raw_points,detailed)),default=0.0)
-        print("[BDFR Details] breast={:.2f}, hips={:.2f}, glutes={:.2f}, max displacement={:.1f} mm".format(
-            *self.sent_details,max_delta*1000))
+        raw_points=[(floats[i],floats[i+1],floats[i+2]) for i in range(0,n*3,3)]
+        if any(abs(v)>1e-9 for v in self.sent_details) and self.reference_key!=self.sent_shape_key:
+            cmds.warning("[BDFR Morph] Shape/pose differs from morph reference: details disabled for safety")
+            detailed=raw_points
+        elif self.morph_library:
+            from bdfr_morph_targets import apply as apply_morph
+            detailed=apply_morph(raw_points,self.morph_library,self.sent_details)
+        else:
+            detailed=raw_points
+            if any(abs(v)>1e-9 for v in self.sent_details):
+                cmds.warning("[BDFR Morph] No sculpted morphs loaded. No deformation applied.")
         points=[om.MPoint(*xyz) for xyz in detailed]
         gender=result["gender"]
         if cmds.objExists(TARGET) and STATE.get("gender") not in (None,gender):
