@@ -1,3 +1,29 @@
+## v0.4.1 — Persistent SMPL-X Live Engine
+
+The Maya v0.4 panel now uses `bdfr_smplx_persistent.py` and `smplx_server.py`.
+The external Python process remains running and keeps the SMPL-X weights/PyTorch model cached for each gender. Qt QProcess communicates JSON requests over stdin and receives base64 little-endian float32 vertices (and triangle connectivity) over stdout. The Maya main thread updates the same mesh; there are **no intermediate OBJ files for live updates**. A 90ms debounce coalesces drag events and ignores stale results. Switching genders may require a one-time second model load.
+
+Update:
+```powershell
+cd D:\Projects\BDFR_AICharacterCreator
+git pull origin main
+```
+In Maya Script Editor (Python):
+```python
+import sys, importlib
+sys.path.insert(0, r"D:\Projects\BDFR_AICharacterCreator")
+import bdfr_smplx_persistent, bdfr_smplx_editor
+importlib.reload(bdfr_smplx_persistent)
+importlib.reload(bdfr_smplx_editor)
+bdfr_smplx_editor.launch()
+```
+
+Move beta sliders; no Apply required. Script Editor prints `[BDFR] SMPL-X engine: X ms, 10475 verts` for successful updates. The first change can still be slow because PyTorch and the model need initialization; subsequent changes should be faster. For an accurate performance baseline compare repeat modifications on the **same gender** after warm-up. The old Apply button remains as a synchronous fallback. Old `bdfr_smplx_live.py` stays for legacy reference and is no longer used by the new panel.
+
+**Testing status:** Code committed and reviewed, but NOT validated in a live Maya 2027.2 installation. On a crash/error, share the Maya Script Editor traceback; this module does not need any new model downloads or Python packages beyond your existing SMPL-X installation.
+
+---
+
 ## Live preview update (v0.4 Live)
 
 In Maya Python Script Editor, after `git pull origin main`:
