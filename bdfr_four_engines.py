@@ -153,8 +153,12 @@ def launch():
     def open_smplx(*_):
         from bdfr_smplx_maya import launch as launch_smplx
         launch_smplx()
-    cmds.button(label="2  OPEN SMPL-X BODY GENERATOR",height=40,
-                command=open_smplx)
+    def open_smplx_editor(*_):
+        import bdfr_smplx_editor
+        bdfr_smplx_editor.launch()
+    cmds.button(label="2  OPEN SMPL-X PARAMETRIC EDITOR v0.4",height=42,
+                command=open_smplx_editor)
+    cmds.button(label="OPEN LEGACY SMPL-X GENERATOR",command=open_smplx)
     cmds.button(label="CHECK SMPL-X MODEL FILES",command=check_models)
     def check_eos(*_):
         s=status()
