@@ -1,3 +1,13 @@
+## v0.4.5 Sculpted Morph Targets (replaces broken procedural sliders)
+
+**What is implemented:** Old approximate breast/hip/glute vertex-bulge algorithm is no longer called by Live or Apply. A morphology library accepts **artist-authored topology-matched vertex deltas**, blended by the three existing sliders. Missing targets intentionally do nothing (and warn); this avoids surprising deformities. JSON morph files include explicit vertex IDs and offsets; accompanying reference.json binds them to the exact SMPL-X gender, beta vector and pose controls used to sculpt. Existing character presets remain supported.
+
+**Authoring workflow in Maya:** Pull latest main, reload modules `bdfr_morph_targets`, `bdfr_smplx_persistent` and `bdfr_smplx_editor`. Launch the editor. Set the three detail sliders to zero, wait for latest Live evaluation and click **1. CAPTURE BASE**. Duplicate the character mesh, then sculpt the *duplicate* with Maya sculpt/soft selection tools, preserving exactly 10,475 vertices and their IDs. Select the duplicate, choose the matching Sculpt channel and Sculpt direction, then click **3. CAPTURE SELECTED SCULPT**; select a morph library folder. Repeat for each positive/negative channel. Use **2. LOAD MORPH LIBRARY** to reload. The same folder may hold all six targets. Morph sliders only operate for exactly the same base gender/betas/pose reference used while sculpting. To change body shape significantly, author/recompute compatible morphs.
+
+This is a **working morph pipeline foundation**, not six finished professional anatomical sculpts. Maya sculpt assets remain to be authored and visually approved. No production-ready rigging or Unreal skeletal export is claimed. Unit tests are provided under `tests/test_morph_targets.py`, but Maya runtime validation is still outstanding. The now-unused `bdfr_body_details.py` is retained for historical compatibility only.
+
+---
+
 ## Localized body detail correction (2026-10-11)
 
 The breast control is now gated to **two front-facing cup patches**, excluding the sternum, back, and chest wall. The glute control targets **posterior cheek surfaces only**, excluding anterior thighs. Hip Width now targets side contours near the pelvis instead of the complete thigh. Spatial masks use bounded smooth falloffs and preserve vertex count and topology.
