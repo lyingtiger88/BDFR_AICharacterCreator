@@ -62,6 +62,13 @@ def run(python_path, model_path, gender="neutral", betas=None):
     for node in transforms:
         # SMPL-X uses meters, Maya default is centimeters.
         cmds.setAttr(node+".scale",100,100,100,type="double3")
+    # Align the lowest point of the character with Maya's ground plane.
+    # OBJ imports and source shapes may have varying vertical offsets.
+    bounds=[cmds.exactWorldBoundingBox(node) for node in transforms]
+    lowest_y=min(b[1] for b in bounds)
+    for node in transforms:
+        cmds.move(0.0,-lowest_y,0.0,node,relative=True,worldSpace=True)
+    print("[BDFR SMPL-X] Ground aligned; previous minimum Y =",lowest_y)
     cmds.select(transforms,r=True)
     cmds.viewFit()
     return {"meshes":transforms,"output":str(OUTPUT)}
@@ -70,7 +77,7 @@ def launch():
     cfg=load_config()
     win="BDFRSMPLXWindow"
     if cmds.window(win,exists=True):cmds.deleteUI(win)
-    window=cmds.window(win,title="BDFR SMPL-X Engine v0.3.4",widthHeight=(500,310))
+    window=cmds.window(win,title="BDFR SMPL-X Engine v0.3.5",widthHeight=(500,310))
     cmds.columnLayout(adjustableColumn=True,rowSpacing=10)
     cmds.text(label="SMPL-X | Full Body, Face & Hands",height=34,font="boldLabelFont")
     python_field=cmds.textFieldButtonGrp(label="External Python",text=cfg.get("python",""),
