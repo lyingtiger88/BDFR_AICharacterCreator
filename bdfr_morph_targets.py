@@ -66,6 +66,7 @@ def save(path,morph):
 def load_folder(folder):
     library={}
     for path in Path(folder).glob("*.json"):
+        if path.name=="reference.json":continue
         obj=validate(json.loads(path.read_text(encoding="utf-8")))
         key=(obj["key"],obj["direction"])
         if key in library:raise ValueError("Duplicate morph: "+str(key))
