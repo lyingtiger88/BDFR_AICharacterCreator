@@ -114,7 +114,18 @@ def launch():
             except Exception as exc:
                 cmds.confirmDialog(title="Import error",message=str(exc),button=["OK"])
                 raise
-    cmds.button(label="1  IMPORT MAKEHUMAN CHARACTER (.OBJ / .FBX)",height=45,command=do_import)
+    def auto_body(*_):
+        from bdfr_makehuman_auto import create_real_body
+        try:
+            result=create_real_body()
+            cmds.confirmDialog(title="MakeHuman model loaded",
+                               message="Vertices: {} | Faces: {}".format(result["vertices"],result["faces"]),
+                               button=["OK"])
+        except Exception as exc:
+            cmds.confirmDialog(title="Auto import failed",message=str(exc),button=["OK"])
+            raise
+    cmds.button(label="1  CREATE BODY FROM OFFICIAL MAKEHUMAN BASE",height=45,command=auto_body)
+    cmds.button(label="OPTIONAL: IMPORT MY OWN MAKEHUMAN FBX / OBJ",command=do_import)
     cmds.separator(style="in")
     model=cmds.textFieldButtonGrp(label="SMPL-X models",buttonLabel="Browse",adjustableColumn=2)
     def choose_models(*_):
