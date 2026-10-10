@@ -131,7 +131,11 @@ class PersistentController(QtCore.QObject):
         floats=struct.unpack("<"+"f"*(n*3),vertices)
         from bdfr_body_details import deform
         raw_points=((floats[i],floats[i+1],floats[i+2]) for i in range(0,n*3,3))
+        raw_points=list(raw_points)
         detailed=deform(raw_points,*self.sent_details)
+        max_delta=max((math.dist(a,b) for a,b in zip(raw_points,detailed)),default=0.0)
+        print("[BDFR Details] breast={:.2f}, hips={:.2f}, glutes={:.2f}, max displacement={:.1f} mm".format(
+            *self.sent_details,max_delta*1000))
         points=[om.MPoint(*xyz) for xyz in detailed]
         gender=result["gender"]
         if cmds.objExists(TARGET) and STATE.get("gender") not in (None,gender):
