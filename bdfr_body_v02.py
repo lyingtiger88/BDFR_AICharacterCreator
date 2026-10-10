@@ -100,38 +100,59 @@ def build(height=175., shoulders=1., waist=1., hips=1., muscle=1.,
       (170,0,-0.4,10.5*head,9.5*head),
       (176,0,-0.5,9*head,9*head),(179,0,-1,6*head,7*head),
       (180,0,-1,1*head,1*head)],group,skin)
+    # Robust native primitives: reliable meshes independent of MFnMesh ring normals.
+    def sphere(name, xyz, scale):
+        obj=cmds.polySphere(name=name, radius=1, subdivisionsX=20,
+                            subdivisionsY=16, constructionHistory=False)[0]
+        cmds.parent(obj,group)
+        cmds.setAttr(obj+".translate", *xyz, type="double3")
+        cmds.setAttr(obj+".scale", *scale, type="double3")
+        cmds.sets(obj, edit=True, forceElement=cmds.listConnections(
+            skin,type="shadingEngine")[0])
+        return obj
+
+    def link(name, p1, p2, thickness):
+        from maya.api import OpenMaya as om
+        a=om.MVector(*p1); b=om.MVector(*p2)
+        direction=b-a
+        obj=cmds.polyCylinder(name=name, radius=1, height=1,
+                              subdivisionsAxis=20, constructionHistory=False)[0]
+        cmds.parent(obj,group)
+        mid=(a+b)*0.5
+        cmds.setAttr(obj+".translate",mid.x,mid.y,mid.z,type="double3")
+        rot=om.MVector(0,1,0).rotateTo(direction.normal()).asEulerRotation()
+        cmds.setAttr(obj+".rotate",math.degrees(rot.x),math.degrees(rot.y),
+                     math.degrees(rot.z),type="double3")
+        cmds.setAttr(obj+".scale",thickness,direction.length(),thickness,
+                     type="double3")
+        cmds.sets(obj,edit=True,forceElement=cmds.listConnections(
+            skin,type="shadingEngine")[0])
+        return obj
+
+    required=[]
     for side,label in ((-1,"L"),(1,"R")):
-        _limb(label+"_Arm",[
-          (side*21*sw,145,0),(side*25*sw,142,0),
-          (side*28*sw,134,0),(side*30*sw,122,0),
-          (side*32*sw,111,0),(side*33*sw,103,1),
-          (side*34*sw,94,2),(side*34*sw,84,3),
-          (side*34*sw,80,3)],
-          [(6*m,6*m),(8*m,8*m),(8*m,8*m),(7*m,7*m),
-           (5.4*m,5.4*m),(5.8*m,5.8*m),(5*m,5*m),
-           (3.5*m,3.5*m),(2.4*m,2.4*m)],group,skin)
-        _limb(label+"_Hand",[(side*34*sw,83,3),(side*34*sw,78,3),
-                              (side*34*sw,73,3),(side*34*sw,70,3)],
-              [(3.5,2.5),(4.5,2.8),(3.8,2.5),(1.,1.)],group,skin)
-        lx=side*11*hw
-        _limb(label+"_Leg",[(lx,91,0),(lx,84,0),(lx,73,0),
-                             (lx,63,1),(lx,53,2),(lx,47,2),
-                             (lx,37,1),(lx,25,0),(lx,12,0),(lx,8,0)],
-              [(9.8*hw,9.4*hw),(10.8*hw*m,10.5*hw*m),
-               (11*hw*m,10*hw*m),(9.2*hw,8.5*hw),(7.5,7.5),
-               (7.3,7.6),(7.9*m,7.5*m),(6.4,6.1),(4.5,4.8),
-               (4.0,4.5)],group,skin)
-        # Distinct polygon foot, aligned toward +Z.
-        _outline(label+"_Foot",[(0,lx,8,0.5,0.5),(3,lx,8,7,14),
-                                 (7,lx,5,6.4,11),(11,lx,0,4.2,5)],
-                 group,skin,sides=20)
-        _outline(label+"_Eye",[(165,side*4.3*head,8*head,1.2,0.7),
-                                (167,side*4.3*head,8.7*head,1.1,0.7)],
-                 group,eye,sides=12)
+        shoulder=(side*24*sw,142,0)
+        elbow=(side*31*sw,110,0)
+        wrist=(side*34*sw,84,3)
+        hip=(side*11*hw,88,0)
+        knee=(side*12*hw,50,1)
+        ankle=(side*12*hw,11,0)
+        required.extend([
+            link(label+"_UpperArm",shoulder,elbow,6.8*m),
+            sphere(label+"_Elbow",elbow,(5.4*m,5.4*m,5.4*m)),
+            link(label+"_Forearm",elbow,wrist,4.8*m),
+            sphere(label+"_Hand",(wrist[0],78,3),(4.2,7.5,2.8)),
+            link(label+"_Thigh",hip,knee,9.2*hw*m),
+            sphere(label+"_Knee",knee,(7.3,7.3,7.3)),
+            link(label+"_Shin",knee,ankle,6.3*m),
+            sphere(label+"_Foot",(ankle[0],5,8),(7,4.5,15)),
+        ])
+    if len(required)!=16 or not all(cmds.objExists(node) for node in required):
+        raise RuntimeError("BDFR body generation incomplete: limbs missing")
     s=height/175.
     cmds.setAttr(group+".scale",s,s,s,type="double3")
     cmds.addAttr(root,longName="bdfrGenerator",dataType="string")
-    cmds.setAttr(root+".bdfrGenerator","organic-proxy-v0.2",type="string")
+    cmds.setAttr(root+".bdfrGenerator","organic-proxy-v0.2.1",type="string")
     cmds.select(root,replace=True)
     cmds.viewFit()
     return root
