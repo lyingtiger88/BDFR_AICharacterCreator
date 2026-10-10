@@ -10,7 +10,7 @@ class BodyDetailsTests(unittest.TestCase):
 
     def test_front_breast_and_rear_glute_independent(self):
         # Simplified upright model of height 2; bell-shaped masks.
-        pts=[(-.126,.41,.15),(.126,.41,.15),(.13,-.166,-.126)]
+        pts=[(-.126,.41,.15),(.126,.41,.15),(.13,-.166,-.126),(0,-1,0),(0,1,0)]
         front=deform(pts,breast_size=1)
         self.assertGreater(front[0][2],pts[0][2])
         self.assertGreater(front[1][2],pts[1][2])
