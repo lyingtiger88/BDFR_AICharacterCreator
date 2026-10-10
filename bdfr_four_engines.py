@@ -125,6 +125,18 @@ def launch():
             cmds.confirmDialog(title="Auto import failed",message=str(exc),button=["OK"])
             raise
     cmds.button(label="1  CREATE BODY FROM OFFICIAL MAKEHUMAN BASE",height=45,command=auto_body)
+    def cleanup_existing(*_):
+        from bdfr_makehuman_auto import clean_imported_helpers
+        try:
+            result=clean_imported_helpers()
+            cmds.confirmDialog(title="Clean imported MakeHuman body",
+                message="Removed {} reference meshes. Smooth preview enabled.\\nBody anatomy is unchanged.".format(
+                    len(result["removed_helpers"])),button=["OK"])
+        except Exception as exc:
+            cmds.confirmDialog(title="Clean failed",message=str(exc),button=["OK"])
+            raise
+    cmds.button(label="REMOVE HELPERS / KEEP BODY / SMOOTH PREVIEW",height=36,
+                command=cleanup_existing)
     cmds.button(label="OPTIONAL: IMPORT MY OWN MAKEHUMAN FBX / OBJ",command=do_import)
     cmds.separator(style="in")
     model=cmds.textFieldButtonGrp(label="SMPL-X models",buttonLabel="Browse",adjustableColumn=2)
