@@ -1,49 +1,48 @@
 # BDFR AI Character Creator
 
-Maya character-building extension. **Current milestone: v0.1.0 procedural proxy**, not yet photo-to-3D reconstruction.
+Autodesk Maya extension. Current release: **v0.2.0 organic procedural body prototype**.
 
-## Install / run
+## What's working in the code
+- Full-body procedural mesh made from smoothly connected ring sections.
+- Separate editable torso/head, two arms/hands and legs/feet.
+- Height, shoulder, waist, hip, muscle, and head proportion sliders.
+- Neutral / Broad / Curvy presets.
+- Standard Maya window or dockable workspace panel.
+- OBJ and FBX export through installed Maya plug-ins.
 
-1. Download or clone the repository.
-2. Open Autodesk Maya, Script Editor, **Python** tab.
-3. Run (replace path with your local clone directory):
+**This is not an anatomically exact human, one-piece watertight skin, photo reconstruction, or AI-fitting system yet.** Face matching with EOS, photogrammetry, full body AI reconstruction and professional rigging remain future milestones. No licensed third-party model data is distributed.
+
+## Install in Maya 2027.2 (and Maya Python 3 variants)
+
+Clone / download this repository to `D:\Projects\BDFR_AICharacterCreator`. In Maya's Python Script Editor:
 
 ```python
-import sys
+import sys, importlib
 sys.path.insert(0, r"D:\Projects\BDFR_AICharacterCreator")
-from bdfr_character_creator import show
-show()
+import bdfr_body_v02, bdfr_character_creator
+importlib.reload(bdfr_body_v02)
+importlib.reload(bdfr_character_creator)
+bdfr_character_creator.show(dock=True)
 ```
 
-4. Change Height, Body width, Head scale, click **CREATE / REBUILD CHARACTER**.
-5. You should see a human-shaped proxy made from independent polygon meshes in Maya's viewport. Change controls and rebuild, then export OBJ or FBX using the buttons.
+If your repo is located elsewhere, substitute its actual directory. Press **GENERATE ORGANIC BODY** to replace the previous `BDFR_Character`. **Save your current scene beforehand**: rebuilding deletes that named hierarchy and any manual edits to it.
 
-## Current features
-- Maya-native control panel with three shape parameters
-- Procedural articulated-looking **static** full-body proxy consisting of polygon meshes
-- Named mesh components under `BDFR_Character` group
-- Basic skin, clothing, and eye materials
-- OBJ and FBX export via Maya export plug-ins (subject to installation)
-- No third-party Python requirements for the current baseline
+To use the floating window instead: `bdfr_character_creator.show()`.
 
-## Current limitations
-- This is a **rough mannequin proxy**, not photorealistic/anatomically accurate character geometry.
-- No face likeness reconstruction, uploaded-image processing, body image reconstruction, rig, joint system, or animation yet.
-- Height slider uniformly scales a 175cm prototype; sliders rebuild meshes, not live deformations.
-- Maya runtime and export workflows need testing in a real Maya installation.
-- Rebuilding deletes the prior `BDFR_Character` hierarchy; save your scene first if you edited it.
+## Manual smoke tests
+1. Generate with all default settings. Confirm a full-height figure appears in the viewport and Outliner contains `BDFR_Character/Body_Surface_GRP`.
+2. Increase Shoulders to 1.25 and Waist to 0.85, regenerate and check silhouette changes.
+3. Try the Broad and Curvy presets; verify symmetric limbs.
+4. Check all components are polygon meshes and editable.
+5. Export an OBJ and an FBX using the panel, then import into an empty Maya scene to verify exports.
+6. Close and reopen the dockable panel; ensure controls load.
 
-## Development plan
+The v0.2 implementation has been reviewed at source level but **has not been executed in an Autodesk Maya runtime by the development environment**. Please send a Maya Script Editor traceback if an error occurs.
 
-- v0.2: coherent body topology, parametric anatomy, head/body connection, face fitting architecture
-- v0.3: photo landmark detector adapter + EOS shape fitting (external model and dependency checks)
-- v0.4: optional SMPL-X/AI fitting behind separately accepted licences
-- v0.5: rigging, skin weights, professional export
+## Implementation
+- `bdfr_character_creator.py`: Maya panel, v0.1 compatibility and exports, v0.2 UI and integration.
+- `bdfr_body_v02.py`: organic procedural body mesh engine using Maya API 2.0.
+- `launch_in_maya.py`: simple floating panel launcher.
 
-## Licensing considerations
-
-EOS source is Apache-2.0, but the supplied Surrey face model has **noncommercial** restrictions. SMPL-X, PIXIE and similar models may also have separate restrictions. No such third-party weights or datasets are redistributed here.
-
-## Compatibility
-
-Target Autodesk Maya with Python 3 and the standard `maya.cmds` API. This first version deliberately avoids a PySide-specific dependency to maximize compatibility. A dockable Qt panel is planned.
+## Licensing
+EOS code Apache-2.0, while bundled Surrey face-model data has noncommercial restrictions. SMPL-X and other third-party weights require separate license reviews before commercialization.
