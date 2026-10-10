@@ -1,3 +1,13 @@
+## v0.4.3 — Unreal-style A-Pose preview
+
+The existing v0.4 Live panel now includes **UNREAL A-POSE** and **RESET REST POSE** buttons. A-Pose sets the SMPL-X shoulder control to -35° (opposite sign on the mirrored shoulder via existing pose mapping), with elbows and hands neutral, and triggers an asynchronous mesh update. Rest Pose restores these pose sliders to zero. The shoulder slider range and preset validation are widened to ±60°, so presets can save A-Pose settings.
+
+**Important:** This is a visual Unreal-style A-Pose preset for the existing SMPL-X deformation engine. It is *not* yet a verified Unreal Engine 5 mannequin reference pose, nor a skeletal FBX retarget profile. The exact orientation must be checked in Maya (front view); if arms lift instead of lower, reverse the shoulder sign in the preset. Skeleton hierarchy, skin weights and Unreal-ready export are later milestones.
+
+After pulling `main`, reload `bdfr_smplx_editor` and open its panel. Press **UNREAL A-POSE** and check arms in front view. Press **RESET REST POSE** to return. No change to the original SMPL-X model weights.
+
+---
+
 ## v0.4.2 — Stable character presets and live-result safeguards
 
 The v0.4 interface is preserved. It adds **SAVE CHARACTER PRESET** and **LOAD CHARACTER PRESET** buttons. Presets store the ten SMPL-X beta values, gender, and four pose/expression sliders as validated JSON, without embedding restricted model weights. Loading a preset schedules a single asynchronous Live update.
