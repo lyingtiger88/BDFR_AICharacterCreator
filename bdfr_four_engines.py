@@ -150,7 +150,12 @@ def launch():
             cmds.confirmDialog(title="SMPL-X",message=str(r)[:1000],button=["OK"])
         except Exception as exc:
             cmds.confirmDialog(title="SMPL-X prerequisite",message=str(exc),button=["OK"])
-    cmds.button(label="2  CHECK SMPL-X MODEL FILES",command=check_models)
+    def open_smplx(*_):
+        from bdfr_smplx_maya import launch as launch_smplx
+        launch_smplx()
+    cmds.button(label="2  OPEN SMPL-X BODY GENERATOR",height=40,
+                command=open_smplx)
+    cmds.button(label="CHECK SMPL-X MODEL FILES",command=check_models)
     def check_eos(*_):
         s=status()
         cmds.confirmDialog(title="EOS status",message="eos Python: {}\nEOS binary: {}".format(
