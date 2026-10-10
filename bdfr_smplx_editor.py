@@ -66,7 +66,12 @@ def apply(python_path, model_dir, gender, betas, shoulder=0,elbow=0,hand=0,smile
         raise FileNotFoundError("External Python not found; run setup_smplx_windows.ps1 first.")
     if not Path(model_dir).is_dir():
         raise FileNotFoundError("SMPL-X weights folder not found.")
-    verts=evaluate(python_path,model_dir,gender,betas,shoulder,elbow,hand,smile)
+    evaluate(python_path,model_dir,gender,betas,shoulder,elbow,hand,smile)
+    return apply_exported(gender)
+
+def apply_exported(gender):
+    """Main-thread only; consume OBJ produced by a completed external evaluation."""
+    verts=_read_vertices(OUTPUT)
     # Import through Maya only on the first evaluation; subsequent calls update mesh points.
     if cmds.objExists(TARGET):
         if STATE["gender"] not in (None,gender):
@@ -96,28 +101,28 @@ def apply(python_path, model_dir, gender, betas, shoulder=0,elbow=0,hand=0,smile
         cmds.move(0,-bbox[1],0,transform,relative=True,worldSpace=True)
     STATE["gender"]=gender
     cmds.select(TARGET,replace=True)
-    cmds.viewFit()
     return TARGET
 
 def launch():
     if cmds.window(WINDOW,exists=True):
         cmds.deleteUI(WINDOW)
     cfg=load_config()
-    win=cmds.window(WINDOW,title="BDFR SMPL-X Parametric Editor v0.4",
+    win=cmds.window(WINDOW,title="BDFR SMPL-X Parametric Editor v0.4 Live",
                     sizeable=True,widthHeight=(490,625))
     cmds.scrollLayout(childResizable=True)
     cmds.columnLayout(adjustableColumn=True,rowSpacing=7)
     cmds.text(label="SMPL-X | Body / Hands / Expression",font="boldLabelFont",height=36)
-    cmds.text(label="Apply updates the same polygon mesh, not the rig.")
+    cmds.text(label="Shape changes run asynchronously; last slider state wins.")
     py=cmds.textFieldGrp(label="Python",text=cfg.get("python") or str(DEFAULT_PYTHON))
     models=cmds.textFieldGrp(label="Model weights",text=cfg.get("models") or str(DEFAULT_MODELS))
     option=cmds.optionMenu(label="Body model")
     for label in ("neutral","male","female"):
         cmds.menuItem(label=label)
     cmds.separator(style="in")
+    slider_labels=["Gender Characteristics","Body Fatness","Abdominal Volume","Body Stature","Body Build","Hip & Pelvis Shape","Lower Body Proportions","Upper Body Proportions","Waist-to-Hip Shape","Torso Contour"]
     sliders=[]
     for i in range(10):
-        control=cmds.floatSliderGrp(label="Shape beta %02d"%(i+1),field=True,
+        control=cmds.floatSliderGrp(label="%02d %s"%(i+1,slider_labels[i]),field=True,
                                     minValue=-3,maxValue=3,value=0)
         sliders.append(control)
     cmds.separator(style="in")
@@ -146,10 +151,28 @@ def launch():
         except Exception as err:
             cmds.confirmDialog(title="BDFR SMPL-X error",message=str(err),button=["OK"])
             raise
+    # QProcess worker: model evaluation never blocks Maya's UI thread.
+    from bdfr_smplx_live import LiveController
+    live=LiveController(WINDOW,
+        lambda: {
+            "python":cmds.textFieldGrp(py,q=True,text=True),
+            "models":cmds.textFieldGrp(models,q=True,text=True),
+            "gender":cmds.optionMenu(option,q=True,value=True),
+            "betas":values()[0],
+            "shoulder":values()[1],
+            "elbow":values()[2],
+            "hand":values()[3],
+            "expression":values()[4]})
+    STATE["live_controller"]=live
+    for control in sliders+[shoulder,elbow,hand,smile]:
+        cmds.floatSliderGrp(control,e=True,dragCommand=lambda *_:live.schedule(),
+                            changeCommand=lambda *_:live.schedule())
+    cmds.optionMenu(option,e=True,changeCommand=lambda *_:live.schedule())
+    cmds.text(label="Live enabled: edits trigger a 200ms debounced asynchronous refresh.")
     cmds.button(label="APPLY TO EXISTING CHARACTER",height=42,command=lambda *_:call(False))
     cmds.button(label="NEW CHARACTER / CHANGE GENDER",height=34,command=lambda *_:call(True))
     cmds.text(label="10 shape coefficients are PCA dimensions, not labeled anatomical controls.")
     cmds.text(label="First expression coefficient is not guaranteed to be a smile.")
-    cmds.text(label="Updates occur on Apply, not continuously while dragging sliders.")
+    cmds.text(label="Beta names are observed tendencies, not isolated anatomical controls.")
     cmds.showWindow(win)
     return win
