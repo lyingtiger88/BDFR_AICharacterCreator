@@ -1,3 +1,29 @@
+## v0.4.2 — Stable character presets and live-result safeguards
+
+The v0.4 interface is preserved. It adds **SAVE CHARACTER PRESET** and **LOAD CHARACTER PRESET** buttons. Presets store the ten SMPL-X beta values, gender, and four pose/expression sliders as validated JSON, without embedding restricted model weights. Loading a preset schedules a single asynchronous Live update.
+
+The persistent engine now checks response IDs to avoid accidentally accepting mismatched responses and prevents schedules after the controller closes. It still coalesces slider events and is not guaranteed real-time 60 FPS.
+
+### Update / Maya load
+```powershell
+cd D:\Projects\BDFR_AICharacterCreator
+git pull origin main
+```
+```python
+import sys, importlib
+sys.path.insert(0, r"D:\Projects\BDFR_AICharacterCreator")
+import bdfr_smplx_persistent, bdfr_smplx_editor
+importlib.reload(bdfr_smplx_persistent)
+importlib.reload(bdfr_smplx_editor)
+bdfr_smplx_editor.launch()
+```
+
+### Tests
+
+`python -m unittest discover -s tests -v` checks preset round-trip and invalid inputs in ordinary Python without Maya. **Maya 2027.2 UI and persistent process still require manual runtime verification.** Save/load concerns *parameters*, not an undoable Maya geometry history. Full Undo/Redo support for live mesh edits remains a separate milestone.
+
+---
+
 ## v0.4.1 — Persistent SMPL-X Live Engine
 
 The Maya v0.4 panel now uses `bdfr_smplx_persistent.py` and `smplx_server.py`.
