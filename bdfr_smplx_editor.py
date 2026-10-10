@@ -110,7 +110,7 @@ def launch():
     if cmds.window(WINDOW,exists=True):
         cmds.deleteUI(WINDOW)
     cfg=load_config()
-    win=cmds.window(WINDOW,title="BDFR SMPL-X Parametric Editor v0.4.1 Persistent",
+    win=cmds.window(WINDOW,title="BDFR SMPL-X Parametric Editor v0.4.2 Stable",
                     sizeable=True,widthHeight=(490,625))
     cmds.scrollLayout(childResizable=True)
     cmds.columnLayout(adjustableColumn=True,rowSpacing=7)
@@ -171,6 +171,43 @@ def launch():
         cmds.floatSliderGrp(control,e=True,dragCommand=lambda *_:live.schedule(),
                             changeCommand=lambda *_:live.schedule())
     cmds.optionMenu(option,e=True,changeCommand=lambda *_:live.schedule())
+    def snapshot():
+        betas,sh,el,ha,ex=values()
+        return {"schema":1,"gender":cmds.optionMenu(option,q=True,value=True),
+                "betas":betas,"shoulder":sh,"elbow":el,"hand":ha,
+                "expression":ex}
+    def save_preset(*_):
+        from bdfr_character_presets import save
+        paths=cmds.fileDialog2(fileMode=0,fileFilter="BDFR Character (*.json)",
+                              caption="Save character parameters")
+        if paths:
+            try:
+                save(paths[0],snapshot())
+                print("[BDFR] Saved character preset:",paths[0])
+            except Exception as exc:
+                cmds.confirmDialog(title="Preset error",message=str(exc),button=["OK"])
+    def load_preset(*_):
+        from bdfr_character_presets import load
+        paths=cmds.fileDialog2(fileMode=1,fileFilter="BDFR Character (*.json)",
+                              caption="Load character parameters")
+        if not paths:return
+        try:
+            data=load(paths[0])  # Fully validate before changing any control
+            live.timer.stop()
+            for slider,value in zip(sliders,data["betas"]):
+                cmds.floatSliderGrp(slider,e=True,value=value)
+            for control,key in ((shoulder,"shoulder"),(elbow,"elbow"),
+                                (hand,"hand"),(smile,"expression")):
+                cmds.floatSliderGrp(control,e=True,value=data[key])
+            cmds.optionMenu(option,e=True,value=data["gender"])
+            live.schedule()
+            print("[BDFR] Loaded preset:",paths[0])
+        except Exception as exc:
+            cmds.confirmDialog(title="Preset error",message=str(exc),button=["OK"])
+    cmds.rowLayout(numberOfColumns=2,adjustableColumn=1,columnWidth2=(235,235))
+    cmds.button(label="SAVE CHARACTER PRESET",command=save_preset,height=30)
+    cmds.button(label="LOAD CHARACTER PRESET",command=load_preset,height=30)
+    cmds.setParent("..")
     cmds.text(label="Live enabled: edits trigger a 90ms debounce; SMPL-X weights stay loaded in external Python.")
     cmds.button(label="APPLY TO EXISTING CHARACTER",height=42,command=lambda *_:call(False))
     cmds.button(label="NEW CHARACTER / CHANGE GENDER",height=34,command=lambda *_:call(True))
