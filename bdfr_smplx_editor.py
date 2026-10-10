@@ -224,7 +224,7 @@ def launch():
             expected=list(morph_state["reference"])
             if profile.exists():
                 saved=json.loads(profile.read_text(encoding="utf-8"))
-                if saved.get("shape_key")!=expected:
+                if saved.get("shape_key")!=json.loads(json.dumps(expected)):
                     raise ValueError("Folder reference differs: choose another folder")
             morph=author(morph_state["base"],mesh_points(selected[0]),key,direction)
             save(folder_path/(key+"_"+direction+".json"),morph)
