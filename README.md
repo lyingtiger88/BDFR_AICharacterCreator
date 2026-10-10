@@ -1,48 +1,56 @@
 # BDFR AI Character Creator
 
-Autodesk Maya extension. Current release: **v0.2.0 organic procedural body prototype**.
+## v0.3 — Four-engine architecture
 
-## What's working in the code
-- Full-body procedural mesh made from smoothly connected ring sections.
-- Separate editable torso/head, two arms/hands and legs/feet.
-- Height, shoulder, waist, hip, muscle, and head proportion sliders.
-- Neutral / Broad / Curvy presets.
-- Standard Maya window or dockable workspace panel.
-- OBJ and FBX export through installed Maya plug-ins.
+This project now uses **existing character systems**, not procedural primitives as its primary character source.
 
-**This is not an anatomically exact human, one-piece watertight skin, photo reconstruction, or AI-fitting system yet.** Face matching with EOS, photogrammetry, full body AI reconstruction and professional rigging remain future milestones. No licensed third-party model data is distributed.
+| Engine | Responsibility | Implemented now |
+|---|---|---|
+| MakeHuman | Real full-body geometry, UVs, potentially skeleton | Maya OBJ/FBX importer |
+| SMPL-X | Parametric body/hands/face | Local asset / Python prerequisite checker |
+| EOS | 3D face fit from photograph + supplied landmark data | Adapter invokes original EOS executable |
+| mGear | Professional Maya rig pipeline | Maya environment detection |
 
-## Install in Maya 2027.2 (and Maya Python 3 variants)
+**Important:** The photo-to-body SMPL-X fitting and MakeHuman-to-mGear rigging are not implemented yet. EOS requires the externally built executable, iBUG landmarks, appropriate model and mapping. Face meshes are not yet registered onto MakeHuman topology. This is **integration stage 1**, not a complete automatic photo-to-character product.
 
-Clone / download this repository to `D:\Projects\BDFR_AICharacterCreator`. In Maya's Python Script Editor:
+### Maya install
+
+Clone repository (or download source zip) to `D:\Projects\BDFR_AICharacterCreator`. Script Editor > Python:
 
 ```python
 import sys, importlib
 sys.path.insert(0, r"D:\Projects\BDFR_AICharacterCreator")
-import bdfr_body_v02, bdfr_character_creator
-importlib.reload(bdfr_body_v02)
-importlib.reload(bdfr_character_creator)
-bdfr_character_creator.show(dock=True)
+import bdfr_four_engines
+importlib.reload(bdfr_four_engines)
+bdfr_four_engines.launch()
 ```
 
-If your repo is located elsewhere, substitute its actual directory. Press **GENERATE ORGANIC BODY** to replace the previous `BDFR_Character`. **Save your current scene beforehand**: rebuilding deletes that named hierarchy and any manual edits to it.
+Export an **OBJ or FBX full-body character from MakeHuman** first. In Maya use `IMPORT MAKEHUMAN CHARACTER` and select that file. For models with a skeleton and materials, prefer MakeHuman FBX export when supported by your installed MakeHuman version.
 
-To use the floating window instead: `bdfr_character_creator.show()`.
+Check SMPL-X, EOS and mGear prerequisites using the other buttons. Do not place noncommercial model weights into this public repository.
 
-## Manual smoke tests
-1. Generate with all default settings. Confirm a full-height figure appears in the viewport and Outliner contains `BDFR_Character/Body_Surface_GRP`.
-2. Increase Shoulders to 1.25 and Waist to 0.85, regenerate and check silhouette changes.
-3. Try the Broad and Curvy presets; verify symmetric limbs.
-4. Check all components are polygon meshes and editable.
-5. Export an OBJ and an FBX using the panel, then import into an empty Maya scene to verify exports.
-6. Close and reopen the dockable panel; ensure controls load.
+### EOS direct fitting example
 
-The v0.2 implementation has been reviewed at source level but **has not been executed in an Autodesk Maya runtime by the development environment**. Please send a Maya Script Editor traceback if an error occurs.
+```python
+from bdfr_four_engines import eos_fit_from_photo
+eos_fit_from_photo(
+    r"D:\data\portrait.png",
+    r"D:\data\portrait.pts",
+    r"D:\eos\share\sfm_shape_3448.bin",
+    r"D:\eos\share\ibug_to_sfm.txt",
+    exe=r"D:\eos\build\fit-model-simple.exe",
+    output_dir=r"D:\data\eos_output"
+)
+```
 
-## Implementation
-- `bdfr_character_creator.py`: Maya panel, v0.1 compatibility and exports, v0.2 UI and integration.
-- `bdfr_body_v02.py`: organic procedural body mesh engine using Maya API 2.0.
-- `launch_in_maya.py`: simple floating panel launcher.
+Check your EOS build's command line options and its license. This function wraps existing EOS only; it does not detect landmarks.
 
-## Licensing
-EOS code Apache-2.0, while bundled Surrey face-model data has noncommercial restrictions. SMPL-X and other third-party weights require separate license reviews before commercialization.
+### Notes
+- `bdfr_four_engines.py` is the new integration entrypoint. The older `bdfr_character_creator.py` and `bdfr_body_v02.py` are kept as **legacy prototypes** for reference, not as the recommended production pipeline.
+- Do not assume compatible topology between MakeHuman, EOS and SMPL-X: mappings and retopology are a separate development task.
+- The MakeHuman app and mGear must be installed separately and model files obtained lawfully.
+- Source is not Maya-runtime-tested here. Please report any traceback from Script Editor.
+
+### Licenses
+
+The EOS code is Apache-2.0, but the Surrey data distributed with it is noncommercial-only. SMPL-X models have separate usage restrictions; MakeHuman outputs and its code have different licenses. mGear has its own license. Review each license before commercial use.
