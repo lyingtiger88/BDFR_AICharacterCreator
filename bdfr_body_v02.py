@@ -122,7 +122,7 @@ def build(height=175., shoulders=1., waist=1., hips=1., muscle=1.,
                (7.3,7.6),(7.9*m,7.5*m),(6.4,6.1),(4.5,4.8),
                (4.0,4.5)],group,skin)
         # Distinct polygon foot, aligned toward +Z.
-        _outline(label+"_Foot",[(0,0,0,0.5,0.5),(3,lx,8,7,14),
+        _outline(label+"_Foot",[(0,lx,8,0.5,0.5),(3,lx,8,7,14),
                                  (7,lx,5,6.4,11),(11,lx,0,4.2,5)],
                  group,skin,sides=20)
         _outline(label+"_Eye",[(165,side*4.3*head,8*head,1.2,0.7),
