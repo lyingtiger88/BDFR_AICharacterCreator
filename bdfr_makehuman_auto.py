@@ -35,12 +35,20 @@ def ensure_base_mesh():
         if tmp.exists():
             tmp.unlink()
 
-def clean_imported_helpers(namespace="BDFRMakeHuman", smooth_level=2):
+def clean_imported_helpers(namespace="BDFRMakeHuman", smooth_level=2, load_if_missing=True):
     """Remove OBJ reference-guide meshes, not actual Maya joints.
     Only touches named MakeHuman meshes in the specified namespace.
     """
     prefix=namespace+":"
     objects=cmds.ls(prefix+"*",type="transform",long=True) or []
+    has_body=any(node.split("|")[-1].split(":")[-1]=="body"
+                 and cmds.listRelatives(node,shapes=True,type="mesh")
+                 for node in objects)
+    if not has_body:
+        if load_if_missing:
+            print("[BDFR] No body in scene; loading official MakeHuman base.")
+            return create_real_body()
+        raise RuntimeError("No MakeHuman body in scene; load one first.")
     bodies=[]
     removed=[]
     for node in sorted(objects,key=lambda n:n.count("|"),reverse=True):
@@ -89,7 +97,7 @@ def create_real_body():
         raise RuntimeError("Imported geometry is unexpectedly incomplete.")
     transforms=list(dict.fromkeys(cmds.listRelatives(
         shape,parent=True,fullPath=True)[0] for shape in new_shapes))
-    cleaned=clean_imported_helpers(namespace, smooth_level=2)
+    cleaned=clean_imported_helpers(namespace, smooth_level=2, load_if_missing=False)
     result={"mesh_file":str(path),"meshes":len(new_shapes),
             "vertices":total_vertices,"faces":total_faces,
             "transforms":transforms}
