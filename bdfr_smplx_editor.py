@@ -110,7 +110,7 @@ def launch():
     if cmds.window(WINDOW,exists=True):
         cmds.deleteUI(WINDOW)
     cfg=load_config()
-    win=cmds.window(WINDOW,title="BDFR SMPL-X Parametric Editor v0.4.5 Sculpt Morphs",
+    win=cmds.window(WINDOW,title="BDFR SMPL-X Parametric Editor v0.5.0 Skeleton Guide",
                     sizeable=True,widthHeight=(490,625))
     cmds.scrollLayout(childResizable=True)
     cmds.columnLayout(adjustableColumn=True,rowSpacing=7)
@@ -280,6 +280,25 @@ def launch():
         cmds.floatSliderGrp(hand,e=True,value=0.0)
         live.schedule()
         print("[BDFR] Rest pose requested")
+    cmds.text(label="SKELETON  |  SMPL-X Body Joint Guide",font="boldLabelFont")
+    def create_joint_guide(*_):
+        from bdfr_smplx_skeleton import build
+        if live.last_joints is None:
+            cmds.warning("[BDFR] Change a slider or press Apply to evaluate SMPL-X joints first.")
+            return
+        try:
+            group=build(live.last_joints,TARGET)
+            print("[BDFR] SMPL-X joint guide created:",group)
+        except Exception as exc:
+            cmds.warning("[BDFR Skeleton] "+str(exc))
+    def toggle_joint_guide(*_):
+        from bdfr_smplx_skeleton import GROUP
+        if cmds.objExists(GROUP):
+            cmds.setAttr(GROUP+".visibility",not cmds.getAttr(GROUP+".visibility"))
+    cmds.rowLayout(numberOfColumns=2,adjustableColumn=1,columnWidth2=(235,235))
+    cmds.button(label="GENERATE SKELETON GUIDE",height=33,command=create_joint_guide)
+    cmds.button(label="SHOW / HIDE SKELETON",height=33,command=toggle_joint_guide)
+    cmds.setParent("..")
     cmds.text(label="POSE PRESETS  |  Unreal-style A-Pose (preview only)",font="boldLabelFont")
     cmds.rowLayout(numberOfColumns=2,adjustableColumn=1,columnWidth2=(235,235))
     cmds.button(label="UNREAL A-POSE",height=34,command=apply_unreal_a_pose)
