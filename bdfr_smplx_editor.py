@@ -147,20 +147,15 @@ def launch():
                 cmds.floatSliderGrp(hand,q=True,value=True),
                 cmds.floatSliderGrp(smile,q=True,value=True))
     def call(new=False):
+        # Manual commands use the SAME asynchronous pipeline as live editing.
+        # Avoid the legacy OBJ path silently discarding sculpt morphs.
         p=cmds.textFieldGrp(py,q=True,text=True)
         m=cmds.textFieldGrp(models,q=True,text=True)
-        g=cmds.optionMenu(option,q=True,value=True)
         save_config(p,m)
         if new and cmds.objExists(TARGET):
             cmds.delete(TARGET)
             STATE["gender"]=None
-        beta,s,e,h,ex=values()
-        try:
-            apply(p,m,g,beta,s,e,h,ex)
-            print("[BDFR] SMPL-X parametric update succeeded:",g)
-        except Exception as err:
-            cmds.confirmDialog(title="BDFR SMPL-X error",message=str(err),button=["OK"])
-            raise
+        STATE["live_controller"].schedule()
     # QProcess worker: model evaluation never blocks Maya's UI thread.
     from bdfr_smplx_persistent import PersistentController
     live=PersistentController(WINDOW,
