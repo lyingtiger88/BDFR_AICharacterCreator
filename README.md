@@ -1,3 +1,13 @@
+## v0.5.0 — SMPL-X Skeleton Guide (Maya)
+
+The persistent SMPL-X server now returns the **22 main body-joint positions** from the evaluated SMPL-X result, along with the mesh. The Maya panel has **GENERATE SKELETON GUIDE** and **SHOW / HIDE SKELETON** actions. After a mesh evaluation, Generate creates Maya joints in the SMPL-X body hierarchy using the character object's world transform so the guide aligns with the existing scaled/grounded mesh. Joints are under `BDFR_SMPLX_JointGuide`; the group is tagged `isGuideOnly`.
+
+**This is an inspection guide, NOT skin-binding, no mGear rig, and not an Unreal skeleton export.** It does not attach geometry to joints or continuously update the guide while sliders change; press Generate again after a shape/pose edit. The 22-joint body guide omits SMPL-X's additional finger, face and eye joints. Maya 2027.2 runtime confirmation is still required.
+
+PowerShell: `git pull origin main`. Restart/reload `bdfr_smplx_persistent`, `bdfr_smplx_skeleton`, and `bdfr_smplx_editor`, launch the editor, move a slider or press Apply, then Generate Skeleton Guide.
+
+---
+
 ## v0.4.5 Sculpted Morph Targets (replaces broken procedural sliders)
 
 **What is implemented:** Old approximate breast/hip/glute vertex-bulge algorithm is no longer called by Live or Apply. A morphology library accepts **artist-authored topology-matched vertex deltas**, blended by the three existing sliders. Missing targets intentionally do nothing (and warn); this avoids surprising deformities. JSON morph files include explicit vertex IDs and offsets; accompanying reference.json binds them to the exact SMPL-X gender, beta vector and pose controls used to sculpt. Existing character presets remain supported.
