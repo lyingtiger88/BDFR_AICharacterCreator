@@ -110,7 +110,7 @@ def launch():
     if cmds.window(WINDOW,exists=True):
         cmds.deleteUI(WINDOW)
     cfg=load_config()
-    win=cmds.window(WINDOW,title="BDFR SMPL-X Parametric Editor v0.4.2 Stable",
+    win=cmds.window(WINDOW,title="BDFR SMPL-X Parametric Editor v0.4.3 A-Pose",
                     sizeable=True,widthHeight=(490,625))
     cmds.scrollLayout(childResizable=True)
     cmds.columnLayout(adjustableColumn=True,rowSpacing=7)
@@ -129,7 +129,7 @@ def launch():
                                     minValue=-3,maxValue=3,value=0)
         sliders.append(control)
     cmds.separator(style="in")
-    shoulder=cmds.floatSliderGrp(label="Shoulder pose",field=True,minValue=-30,maxValue=30,value=0)
+    shoulder=cmds.floatSliderGrp(label="Shoulder pose",field=True,minValue=-60,maxValue=60,value=0)
     elbow=cmds.floatSliderGrp(label="Elbow pose",field=True,minValue=-60,maxValue=60,value=0)
     hand=cmds.floatSliderGrp(label="Finger curl",field=True,minValue=0,maxValue=45,value=0)
     smile=cmds.floatSliderGrp(label="Expression coef 1",field=True,minValue=-2,maxValue=2,value=0)
@@ -171,6 +171,26 @@ def launch():
         cmds.floatSliderGrp(control,e=True,dragCommand=lambda *_:live.schedule(),
                             changeCommand=lambda *_:live.schedule())
     cmds.optionMenu(option,e=True,changeCommand=lambda *_:live.schedule())
+    # SMPL-X shoulder Z axis-axis-angle approximates an A-pose with
+    # arms descending from the template position. Keep it editable.
+    def apply_unreal_a_pose(*_):
+        cmds.floatSliderGrp(shoulder,e=True,value=-35.0)
+        cmds.floatSliderGrp(elbow,e=True,value=0.0)
+        cmds.floatSliderGrp(hand,e=True,value=0.0)
+        live.schedule()
+        print("[BDFR] Unreal-style A-Pose requested: shoulders -35 degrees")
+    def reset_pose(*_):
+        cmds.floatSliderGrp(shoulder,e=True,value=0.0)
+        cmds.floatSliderGrp(elbow,e=True,value=0.0)
+        cmds.floatSliderGrp(hand,e=True,value=0.0)
+        live.schedule()
+        print("[BDFR] Rest pose requested")
+    cmds.text(label="POSE PRESETS  |  Unreal-style A-Pose (preview only)",font="boldLabelFont")
+    cmds.rowLayout(numberOfColumns=2,adjustableColumn=1,columnWidth2=(235,235))
+    cmds.button(label="UNREAL A-POSE",height=34,command=apply_unreal_a_pose)
+    cmds.button(label="RESET REST POSE",height=34,command=reset_pose)
+    cmds.setParent("..")
+
     def snapshot():
         betas,sh,el,ha,ex=values()
         return {"schema":1,"gender":cmds.optionMenu(option,q=True,value=True),
