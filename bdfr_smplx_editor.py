@@ -157,6 +157,14 @@ def launch():
         beta,s,e,h,ex=values()
         try:
             apply(p,m,g,beta,s,e,h,ex)
+            from bdfr_body_details import deform
+            fn=_shape(TARGET)
+            raw=[(v.x,v.y,v.z) for v in fn.getPoints(om.MSpace.kObject)]
+            detailed=deform(raw,
+                cmds.floatSliderGrp(breast,q=True,value=True),
+                cmds.floatSliderGrp(hips,q=True,value=True),
+                cmds.floatSliderGrp(glutes,q=True,value=True))
+            fn.setPoints([om.MPoint(*v) for v in detailed],om.MSpace.kObject)
             print("[BDFR] SMPL-X parametric update succeeded:",g)
         except Exception as err:
             cmds.confirmDialog(title="BDFR SMPL-X error",message=str(err),button=["OK"])
