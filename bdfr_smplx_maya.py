@@ -5,18 +5,21 @@ import json
 import os
 import subprocess
 import sys
+import shutil
 from pathlib import Path
 import maya.cmds as cmds
 
 ROOT=Path(__file__).resolve().parent
 CONFIG=Path.home()/ "Documents"/"BDFR_AICharacterCreator"/"smplx_settings.json"
+DEFAULT_MODELS=ROOT/"models"/"smplx"
+DEFAULT_PYTHON=ROOT/".venv_smplx"/"Scripts"/"python.exe"
 OUTPUT=Path.home()/ "Documents"/"BDFR_AICharacterCreator"/"generated"/"smplx_character.obj"
 
 def load_config():
     try:
         return json.loads(CONFIG.read_text(encoding="utf-8"))
     except (ValueError,OSError):
-        return {"python":"","models":""}
+        return {"python":str(DEFAULT_PYTHON) if DEFAULT_PYTHON.is_file() else (shutil.which("python") or ""), "models":str(DEFAULT_MODELS)}
 
 def save_config(python_path, model_path):
     CONFIG.parent.mkdir(parents=True,exist_ok=True)
@@ -26,12 +29,17 @@ def save_config(python_path, model_path):
 def run(python_path, model_path, gender="neutral", betas=None):
     interpreter=Path(python_path).expanduser()
     model_dir=Path(model_path).expanduser()
+    if not model_dir.is_dir() and DEFAULT_MODELS.is_dir():
+        model_dir=DEFAULT_MODELS
     if not interpreter.is_file():
         raise FileNotFoundError("Choose the external Python executable with torch and smplx installed.")
     if not model_dir.is_dir():
         raise FileNotFoundError("Choose folder with your licensed SMPL-X model files.")
     filename="SMPLX_"+gender.upper()
-    if not list(model_dir.rglob(filename+".npz"))+list(model_dir.rglob(filename+".pkl")):
+    weights=list(model_dir.rglob(filename+".npz"))+list(model_dir.rglob(filename+".pkl"))
+    if gender=="neutral":
+        weights+=list(model_dir.rglob("SMPLX_NEUTRAL_2020.npz"))
+    if not weights:
         raise FileNotFoundError(filename+" model not found in the configured folder.")
     OUTPUT.parent.mkdir(parents=True,exist_ok=True)
     command=[str(interpreter),str(ROOT/"smplx_export.py"),"--models",str(model_dir),
@@ -62,12 +70,12 @@ def launch():
     cfg=load_config()
     win="BDFRSMPLXWindow"
     if cmds.window(win,exists=True):cmds.deleteUI(win)
-    window=cmds.window(win,title="BDFR SMPL-X Engine v0.3.3",widthHeight=(500,310))
+    window=cmds.window(win,title="BDFR SMPL-X Engine v0.3.4",widthHeight=(500,310))
     cmds.columnLayout(adjustableColumn=True,rowSpacing=10)
     cmds.text(label="SMPL-X | Full Body, Face & Hands",height=34,font="boldLabelFont")
     python_field=cmds.textFieldButtonGrp(label="External Python",text=cfg.get("python",""),
                                          buttonLabel="Browse",adjustableColumn=2)
-    models_field=cmds.textFieldButtonGrp(label="Licensed weights",text=cfg.get("models",""),
+    models_field=cmds.textFieldButtonGrp(label="Licensed weights",text=cfg.get("models","") or str(DEFAULT_MODELS),
                                          buttonLabel="Browse",adjustableColumn=2)
     def browse_python(*_):
         f=cmds.fileDialog2(fileMode=1,caption="Choose Python executable")
