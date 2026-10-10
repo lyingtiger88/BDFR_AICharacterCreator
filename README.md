@@ -1,3 +1,21 @@
+## v0.4.4 detail-slider hotfix
+
+If Breast Size, Hip Width or Glute Size looked unchanged, pull main and **reload bdfr_body_details, bdfr_smplx_persistent, and bdfr_smplx_editor**; a Python module imported earlier remains cached in Maya even if the file was updated. Revised spatial masks estimate torso/pelvis depth relative to mesh proportions and use stronger visible deformation. Script Editor now logs `[BDFR Details] breast=..., hips=..., glutes=..., max displacement=... mm` on successful live updates. If max displacement is 0 mm even at +1, share that line and a front/side screenshot so we can confirm orientation and shape region on your model. This remains experimental mesh shaping, not production rig-ready breast or glute blendshapes.
+
+Reload command:
+```python
+import sys, importlib
+sys.path.insert(0, r"D:\Projects\BDFR_AICharacterCreator")
+import bdfr_body_details, bdfr_smplx_persistent, bdfr_smplx_editor
+for m in (bdfr_body_details, bdfr_smplx_persistent, bdfr_smplx_editor):
+    importlib.reload(m)
+bdfr_smplx_editor.launch()
+```
+
+No Maya runtime test has been performed yet for this hotfix.
+
+---
+
 ## v0.4.4 — Main Body Controls / Advanced Details
 
 The editor is now organized with **MAIN BODY CONTROLS** before the ten **ADVANCED DETAILS** SMPL-X beta sliders. Main controls include **Breast Size**, **Hip Width** and **Glute Size**, each ranging from -1 to +1 (0 = no extra shaping). They respond to Live editing and manual Apply. The profile is stored in JSON presets; old presets load with all three new controls set to zero.
