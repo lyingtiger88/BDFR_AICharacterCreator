@@ -5,7 +5,7 @@ import argparse
 import json
 from pathlib import Path
 
-def export(model_dir, output, gender="neutral", betas=None):
+def export(model_dir, output, gender="neutral", betas=None, body_pose=None, left_hand=None, right_hand=None, expression=None):
     import torch
     import smplx
     model_dir=Path(model_dir).expanduser().resolve()
@@ -29,8 +29,22 @@ def export(model_dir, output, gender="neutral", betas=None):
     values=list(betas or [])[:count]
     values=values+[0.]*(count-len(values))
     params=torch.tensor([values],dtype=torch.float32)
+    def pose_tensor(vals, expected):
+        vec=list(vals or [])
+        if len(vec)>expected:
+            raise ValueError("Too many pose values: expected "+str(expected))
+        return torch.tensor([vec+[0.0]*(expected-len(vec))],dtype=torch.float32)
+    kwargs={"betas":params}
+    if body_pose is not None:
+        kwargs["body_pose"]=pose_tensor(body_pose,63)
+    if left_hand is not None:
+        kwargs["left_hand_pose"]=pose_tensor(left_hand,45)
+    if right_hand is not None:
+        kwargs["right_hand_pose"]=pose_tensor(right_hand,45)
+    if expression is not None:
+        kwargs["expression"]=pose_tensor(expression,int(model.num_expression_coeffs))
     with torch.no_grad():
-        result=model(betas=params,return_verts=True)
+        result=model(return_verts=True,**kwargs)
     vertices=result.vertices[0].detach().cpu().numpy()
     faces=model.faces
     output.parent.mkdir(parents=True,exist_ok=True)
@@ -48,5 +62,9 @@ if __name__=="__main__":
     ap.add_argument("--out",required=True)
     ap.add_argument("--gender",choices=["neutral","male","female"],default="neutral")
     ap.add_argument("--betas",nargs="*",type=float,default=[])
+    ap.add_argument("--body-pose",nargs="*",type=float)
+    ap.add_argument("--left-hand",nargs="*",type=float)
+    ap.add_argument("--right-hand",nargs="*",type=float)
+    ap.add_argument("--expression",nargs="*",type=float)
     args=ap.parse_args()
-    print(json.dumps(export(args.models,args.out,args.gender,args.betas)))
+    print(json.dumps(export(args.models,args.out,args.gender,args.betas,args.body_pose,args.left_hand,args.right_hand,args.expression)))
