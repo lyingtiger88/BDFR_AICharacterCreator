@@ -12,13 +12,19 @@ def export(model_dir, output, gender="neutral", betas=None):
     output=Path(output).expanduser().resolve()
     if gender not in ("neutral","male","female"):
         raise ValueError("Invalid SMPL-X gender")
-    files=list(model_dir.rglob("SMPLX_"+gender.upper()+".npz"))
-    files+=list(model_dir.rglob("SMPLX_"+gender.upper()+".pkl"))
+    names=["SMPLX_"+gender.upper()+".npz", "SMPLX_"+gender.upper()+".pkl"]
+    if gender=="neutral":
+        names.append("SMPLX_NEUTRAL_2020.npz")
+    files=[]
+    for name in names:
+        files.extend(sorted(model_dir.rglob(name)))
     if not files:
         raise FileNotFoundError("SMPL-X model weights missing for "+gender)
-    model=smplx.create(str(files[0]), model_type="smplx",
-                       gender=gender, ext=files[0].suffix.lstrip("."),
-                       use_pca=False, batch_size=1)
+    # Official smplx.create(path) builds filename from path, gender, and ext.
+    # Explicit model class loads the exact selected file, including _2020 variants.
+    model=smplx.SMPLX(model_path=str(files[0]), gender=gender,
+                      ext=files[0].suffix.lstrip("."),
+                      use_pca=False, batch_size=1)
     count=int(model.num_betas)
     values=list(betas or [])[:count]
     values=values+[0.]*(count-len(values))
@@ -34,7 +40,7 @@ def export(model_dir, output, gender="neutral", betas=None):
             file.write("v {:.8f} {:.8f} {:.8f}\n".format(float(x),float(y),float(z)))
         for a,b,c in faces:
             file.write("f {} {} {}\n".format(int(a)+1,int(b)+1,int(c)+1))
-    return {"output":str(output),"vertices":len(vertices),"faces":len(faces)}
+    return {"output":str(output),"model_file":str(files[0]),"vertices":len(vertices),"faces":len(faces)}
 
 if __name__=="__main__":
     ap=argparse.ArgumentParser()
