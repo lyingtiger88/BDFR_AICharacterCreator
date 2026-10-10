@@ -11,7 +11,7 @@ import maya.cmds as cmds
 
 WINDOW = "BDFR_AICharacterCreator"
 ROOT = "BDFR_Character"
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 
 def _material(name, rgb):
@@ -177,5 +177,62 @@ def show():
     cmds.button(label="Export FBX", command=export_fbx)
     cmds.text(label="EOS, image fitting, anatomical topology and rigs: planned",
               align="center")
+    cmds.showWindow(window)
+    return window
+
+
+# ---- v0.2 organic body UI ----
+
+def _create_v02(*_):
+    from bdfr_body_v02 import build
+    profile = cmds.optionMenu("bdfrPhysiqueV02", q=True, value=True)
+    values = [cmds.floatSliderGrp("bdfrV02_"+key, q=True, value=True)
+              for key in ("height","shoulders","waist","hips","muscle","head")]
+    result=build(*values,physique=profile)
+    cmds.inViewMessage(amg="BDFR v0.2 body created: "+result,
+                       pos="midCenter",fade=True)
+
+
+def _build_v02_ui():
+    cmds.columnLayout(adjustableColumn=True,rowSpacing=8)
+    cmds.text(label="BDFR AI CHARACTER CREATOR  |  v0.2",height=30,font="boldLabelFont")
+    cmds.text(label="Procedural organic prototype — no photo fitting yet")
+    cmds.separator(style="in")
+    options=(("height","Height (cm)",130,220,175),
+             ("shoulders","Shoulders",0.7,1.4,1),
+             ("waist","Waist",0.7,1.4,1),
+             ("hips","Hips",0.7,1.4,1),
+             ("muscle","Muscle volume",0.7,1.4,1),
+             ("head","Head proportion",0.7,1.3,1))
+    for key,label,minimum,maximum,value in options:
+        cmds.floatSliderGrp("bdfrV02_"+key,label=label,field=True,
+                            minValue=minimum,maxValue=maximum,value=value)
+    cmds.optionMenu("bdfrPhysiqueV02",label="Body preset")
+    for entry in ("Neutral","Broad","Curvy"):
+        cmds.menuItem(label=entry)
+    cmds.button(label="GENERATE ORGANIC BODY",height=46,command=_create_v02)
+    cmds.separator(style="in")
+    cmds.button(label="Export OBJ",command=export_obj)
+    cmds.button(label="Export FBX",command=export_fbx)
+    cmds.text(label="Geometry only. No rig, AI photos, or EOS fitting yet.",
+              align="center")
+
+
+def show(dock=False):
+    """Launch v0.2. dock=True uses Maya's dockable workspaceControl."""
+    dockname="BDFRCharacterCreatorDock"
+    if dock:
+        if cmds.workspaceControl(dockname,exists=True):
+            cmds.deleteUI(dockname)
+        panel=cmds.workspaceControl(dockname,label="BDFR Character Creator",
+                                    retain=False,initialWidth=400)
+        cmds.setParent(panel)
+        _build_v02_ui()
+        return panel
+    if cmds.window(WINDOW,exists=True):
+        cmds.deleteUI(WINDOW)
+    window=cmds.window(WINDOW,title="BDFR AI Character Creator | v0.2",
+                       widthHeight=(405,480),sizeable=True)
+    _build_v02_ui()
     cmds.showWindow(window)
     return window
