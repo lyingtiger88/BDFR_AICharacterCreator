@@ -61,9 +61,12 @@ def main():
                       return_verts=True)
             verts=out.vertices[0].detach().cpu().numpy().astype("<f4",copy=False)
             faces=np.asarray(model.faces,dtype="<i4")
+            joints=out.joints[0,:22].detach().cpu().numpy().astype("<f4",copy=False)
             send({"id":request_id,"ok":True,"gender":req["gender"],
                   "vertices":base64.b64encode(verts.tobytes()).decode("ascii"),
                   "faces":base64.b64encode(faces.tobytes()).decode("ascii"),
+                  "joints":base64.b64encode(joints.tobytes()).decode("ascii"),
+                  "joint_count":len(joints),
                   "vertex_count":len(verts),"face_count":len(faces),
                   "compute_ms":round((time.perf_counter()-t)*1000,1)})
         except Exception as exc:
