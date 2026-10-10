@@ -1,3 +1,13 @@
+## Localized body detail correction (2026-10-11)
+
+The breast control is now gated to **two front-facing cup patches**, excluding the sternum, back, and chest wall. The glute control targets **posterior cheek surfaces only**, excluding anterior thighs. Hip Width now targets side contours near the pelvis instead of the complete thigh. Spatial masks use bounded smooth falloffs and preserve vertex count and topology.
+
+**Limitations:** this is still an experimental geometry-space approximation with a presumed +Z anterior orientation, not artist-painted vertex masks or anatomy-verified production blendshapes. The exact region positions may differ by gender/betas/pose; Maya front/side/back testing is required. To reload a hotfix in Maya, reload `bdfr_body_details` as well as `bdfr_smplx_persistent` and `bdfr_smplx_editor`.
+
+Run `python -m unittest discover -s tests -v` for pure-Python checks.
+
+---
+
 ## v0.4.4 detail-slider hotfix
 
 If Breast Size, Hip Width or Glute Size looked unchanged, pull main and **reload bdfr_body_details, bdfr_smplx_persistent, and bdfr_smplx_editor**; a Python module imported earlier remains cached in Maya even if the file was updated. Revised spatial masks estimate torso/pelvis depth relative to mesh proportions and use stronger visible deformation. Script Editor now logs `[BDFR Details] breast=..., hips=..., glutes=..., max displacement=... mm` on successful live updates. If max displacement is 0 mm even at +1, share that line and a front/side screenshot so we can confirm orientation and shape region on your model. This remains experimental mesh shaping, not production rig-ready breast or glute blendshapes.
