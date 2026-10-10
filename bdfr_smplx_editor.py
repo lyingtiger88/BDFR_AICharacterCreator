@@ -110,7 +110,7 @@ def launch():
     if cmds.window(WINDOW,exists=True):
         cmds.deleteUI(WINDOW)
     cfg=load_config()
-    win=cmds.window(WINDOW,title="BDFR SMPL-X Parametric Editor v0.4.3 A-Pose",
+    win=cmds.window(WINDOW,title="BDFR SMPL-X Parametric Editor v0.4.4 Body Details",
                     sizeable=True,widthHeight=(490,625))
     cmds.scrollLayout(childResizable=True)
     cmds.columnLayout(adjustableColumn=True,rowSpacing=7)
@@ -122,6 +122,13 @@ def launch():
     for label in ("neutral","male","female"):
         cmds.menuItem(label=label)
     cmds.separator(style="in")
+    cmds.text(label="MAIN BODY CONTROLS",font="boldLabelFont")
+    cmds.text(label="Local mesh shaping (experimental preview; -1 to +1)")
+    breast=cmds.floatSliderGrp(label="Breast Size",field=True,minValue=-1,maxValue=1,value=0)
+    hips=cmds.floatSliderGrp(label="Hip Width",field=True,minValue=-1,maxValue=1,value=0)
+    glutes=cmds.floatSliderGrp(label="Glute Size",field=True,minValue=-1,maxValue=1,value=0)
+    cmds.separator(style="in")
+    cmds.text(label="ADVANCED DETAILS  |  SMPL-X Shape Betas",font="boldLabelFont")
     slider_labels=["Gender Characteristics","Body Fatness","Abdominal Volume","Body Stature","Body Build","Hip & Pelvis Shape","Lower Body Proportions","Upper Body Proportions","Waist-to-Hip Shape","Torso Contour"]
     sliders=[]
     for i in range(10):
@@ -165,9 +172,12 @@ def launch():
             "shoulder":values()[1],
             "elbow":values()[2],
             "hand":values()[3],
-            "expression":values()[4]})
+            "expression":values()[4],
+            "breast_size":cmds.floatSliderGrp(breast,q=True,value=True),
+            "hip_width":cmds.floatSliderGrp(hips,q=True,value=True),
+            "glute_size":cmds.floatSliderGrp(glutes,q=True,value=True)})
     STATE["live_controller"]=live
-    for control in sliders+[shoulder,elbow,hand,smile]:
+    for control in [breast,hips,glutes]+sliders+[shoulder,elbow,hand,smile]:
         cmds.floatSliderGrp(control,e=True,dragCommand=lambda *_:live.schedule(),
                             changeCommand=lambda *_:live.schedule())
     cmds.optionMenu(option,e=True,changeCommand=lambda *_:live.schedule())
@@ -195,7 +205,10 @@ def launch():
         betas,sh,el,ha,ex=values()
         return {"schema":1,"gender":cmds.optionMenu(option,q=True,value=True),
                 "betas":betas,"shoulder":sh,"elbow":el,"hand":ha,
-                "expression":ex}
+                "expression":ex,
+                "breast_size":cmds.floatSliderGrp(breast,q=True,value=True),
+                "hip_width":cmds.floatSliderGrp(hips,q=True,value=True),
+                "glute_size":cmds.floatSliderGrp(glutes,q=True,value=True)}
     def save_preset(*_):
         from bdfr_character_presets import save
         paths=cmds.fileDialog2(fileMode=0,fileFilter="BDFR Character (*.json)",
@@ -214,6 +227,8 @@ def launch():
         try:
             data=load(paths[0])  # Fully validate before changing any control
             live.timer.stop()
+            for control,key in ((breast,"breast_size"),(hips,"hip_width"),(glutes,"glute_size")):
+                cmds.floatSliderGrp(control,e=True,value=data[key])
             for slider,value in zip(sliders,data["betas"]):
                 cmds.floatSliderGrp(slider,e=True,value=value)
             for control,key in ((shoulder,"shoulder"),(elbow,"elbow"),
@@ -231,6 +246,7 @@ def launch():
     cmds.text(label="Live enabled: edits trigger a 90ms debounce; SMPL-X weights stay loaded in external Python.")
     cmds.button(label="APPLY TO EXISTING CHARACTER",height=42,command=lambda *_:call(False))
     cmds.button(label="NEW CHARACTER / CHANGE GENDER",height=34,command=lambda *_:call(True))
+    cmds.text(label="Main controls reshape evaluated mesh locally; experimental, not rig-ready.")
     cmds.text(label="10 shape coefficients are PCA dimensions, not labeled anatomical controls.")
     cmds.text(label="First expression coefficient is not guaranteed to be a smile.")
     cmds.text(label="Beta names are observed tendencies, not isolated anatomical controls.")
