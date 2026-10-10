@@ -28,8 +28,11 @@ class PersistentController(QtCore.QObject):
         self.timer.timeout.connect(self._send)
         self.engine_key=None
         self.request_id=0
+        self.closed=False
+        self.active_request_id=None
 
     def schedule(self):
+        if self.closed:return
         self.revision+=1
         self.pending=True
         self.timer.start()
@@ -85,11 +88,12 @@ class PersistentController(QtCore.QObject):
         payload=(json.dumps(request,separators=(",",":"))+"\n").encode("utf-8")
         self.process.write(payload)
         self.sent_revision=self.revision
+        self.active_request_id=self.request_id
         self.pending=False
         self.inflight=True
 
     def _received(self):
-        if not self.process:return
+        if self.closed or not self.process:return
         self.stdout.extend(bytes(self.process.readAllStandardOutput()))
         while b"\n" in self.stdout:
             line,_,rest=self.stdout.partition(b"\n")
@@ -97,6 +101,8 @@ class PersistentController(QtCore.QObject):
             try:
                 result=json.loads(line.decode("utf-8"))
                 self.inflight=False
+                if result.get("id")!=self.active_request_id:
+                    raise ValueError("Unexpected SMPL-X response ID")
                 if not result.get("ok"):
                     raise RuntimeError(result.get("error","Unknown engine error"))
                 if self.sent_revision==self.revision and not self.pending:
@@ -151,11 +157,14 @@ class PersistentController(QtCore.QObject):
             if error.strip():print("[BDFR SMPL-X stderr]",error[-1500:])
 
     def _stopped(self,*_):
+        if self.closed:return
         self.inflight=False
         self.process=None
         if self.pending:self.timer.start(100)
 
     def close(self):
+        self.closed=True
+        self.pending=False
         self.timer.stop()
         if self.process and self.process.state()!=QtCore.QProcess.NotRunning:
             self.process.kill()
