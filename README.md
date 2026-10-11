@@ -1,3 +1,22 @@
+## Engine selection wizard — SMPL-X or Game Character (prototype)
+
+New entry point: `bdfr_character_creator_launcher.py`. Run `import bdfr_character_creator_launcher; bdfr_character_creator_launcher.launch()` inside Maya Python Script Editor. **Step 1** selects SMPL-X or BDFR Game Character. **Step 2** opens the existing SMPL-X Live editor or MakeHuman CC0 base-mesh importer respectively. This is a functional workflow selector, **not** a finished game-character modeling engine.
+
+Current Game Character mode reuses `bdfr_makehuman_auto.py` and the official MakeHuman CC0 `base.obj`; its mesh import and cleanup were part of earlier v0.3 work. A production-grade Game Character stage will need MakeHuman target/morph evaluation, tailored mesh/proxy topology, facial/body controls, skinning, FBX, LOD, and tests in Unreal. The MakeHuman/MPFB core graphic assets use CC0; MakeHuman source code uses AGPL and MPFB source GPL. Do not copy their source code into this proprietary-oriented implementation without a licensing decision. SMPL-X weights retain their original separate restrictive license and must not enter the public repository.
+
+For a clean Maya session:
+```python
+import sys, importlib
+sys.path.insert(0, r"D:\Projects\BDFR_AICharacterCreator")
+import bdfr_character_creator_launcher
+importlib.reload(bdfr_character_creator_launcher)
+bdfr_character_creator_launcher.launch()
+```
+
+Next implementation milestones: a MakeHuman target evaluation service and native Maya body-controls editor, followed by topology/rig/retarget checks. **No Maya runtime test of this new wizard has been performed yet.**
+
+---
+
 ## v0.5.0 — SMPL-X Skeleton Guide (Maya)
 
 The persistent SMPL-X server now returns the **22 main body-joint positions** from the evaluated SMPL-X result, along with the mesh. The Maya panel has **GENERATE SKELETON GUIDE** and **SHOW / HIDE SKELETON** actions. After a mesh evaluation, Generate creates Maya joints in the SMPL-X body hierarchy using the character object's world transform so the guide aligns with the existing scaled/grounded mesh. Joints are under `BDFR_SMPLX_JointGuide`; the group is tagged `isGuideOnly`.
