@@ -1,3 +1,11 @@
+## Unified Character Creator launcher (development UI simplification)
+
+The default launcher now shows **CREATE CHARACTER** (opens BDFR Native Human alpha) and **OPEN CHARACTER SCENE** (opens Maya's native scene picker). The existing SMPL-X, MakeHuman, Human Generator Bridge, and Native Morph Lab are preserved under the collapsed **ADVANCED / DEVELOPMENT TOOLS** section. No engine has been removed; the launcher is now a single entry point rather than a mandatory four-engine selection page.
+
+Update with `git pull origin main`, then reload and call `bdfr_character_creator_launcher.launch()`. The native editor is still an alpha and is **not** yet the fully integrated character editor; this change resolves UI navigation only.
+
+---
+
 ## BDFR Native Human — standalone Maya alpha
 
 Fourth launcher choice: **BDFR Native Human (Standalone Alpha)**. Independent of Blender, Human Generator, or SMPL-X. This is the first stage of a **separately distributable native engine**, not a clone of Human Generator. It uses the existing MakeHuman base loader for a base mesh (first run may require internet; subsequent use is locally cached), or an existing Maya mesh you have permission to use. No Human Generator assets are packaged.
