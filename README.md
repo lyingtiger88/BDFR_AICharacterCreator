@@ -1,3 +1,13 @@
+## BDFR Native Human — standalone Maya alpha
+
+Fourth launcher choice: **BDFR Native Human (Standalone Alpha)**. Independent of Blender, Human Generator, or SMPL-X. This is the first stage of a **separately distributable native engine**, not a clone of Human Generator. It uses the existing MakeHuman base loader for a base mesh (first run may require internet; subsequent use is locally cached), or an existing Maya mesh you have permission to use. No Human Generator assets are packaged.
+
+Start: `git pull origin main` and reload `bdfr_character_creator_launcher` in Maya, select **BDFR Native Human**. Click **CREATE BASE HUMAN**, **DUPLICATE BASE FOR MAYA SCULPTING**, edit the duplicate with Maya modeling/sculpt tools, name your morph and **SAVE SCULPT AS REUSABLE NATIVE MORPH**. Later, select the original unmodified base, click **LOAD LOCAL MORPH AS LIVE MAYA BLENDSHAPE**, and change its new slider. Local morph JSON files are saved in `~/Documents/BDFR_AICharacterCreator/native_human/morphs` with basis vertex checksum and scene unit metadata for safety.
+
+**Current scope:** native morph authoring, serialization, and blendShape loading with topology/basis verification. Full independent male/female/face anatomical morph libraries, materials, hair, clothes, rigging, asset provenance audits, and Unreal export remain future work. This alpha has not yet been runtime-tested in Maya. Do not distribute third-party artwork or models without checking their asset licenses.
+
+---
+
 ## HG Live Maya BlendShapes (experimental)
 
 The Shape Key panel now has **BIND SHAPE KEYS TO EXISTING MAYA HG_BODY (LIVE)**. Scan shape keys from your saved Blender 4.4.3 scene, then Bind. Blender exports exact Basis and target vertex positions to temporary binary files; the Maya tool builds a native `blendShape` on the existing `HG_Body` and connects slider drag/change to Maya weight attributes. Subsequent movements require **no Blender process and no FBX export**.
