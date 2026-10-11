@@ -207,6 +207,12 @@ def launch():
         except Exception as exc:
             cmds.confirmDialog(title="HG Albedo error",message=str(exc),button=["OK"])
     cmds.button(label="APPLY BAKED ALBEDO TO EXISTING HG_BODY",height=36,command=fix_existing)
+    def open_shape_controls(*_):
+        import bdfr_hg_shape_keys_maya
+        bdfr_hg_shape_keys_maya.launch(
+            cmds.textFieldButtonGrp(blender,q=True,text=True).strip(),
+            cmds.textFieldButtonGrp(blend,q=True,text=True).strip())
+    cmds.button(label="OPEN BLENDER SHAPE KEY CONTROLS",height=36,command=open_shape_controls)
     cmds.text(label="Supports authored .blend characters; not live HG sliders or native HG generation in Maya.",wordWrap=True)
     cmds.showWindow(w)
     return w
