@@ -13,24 +13,29 @@ def launch():
     if cmds.window(WINDOW,exists=True):
         cmds.deleteUI(WINDOW)
     win=cmds.window(WINDOW,title="BDFR AI Character Creator | Choose Modeling Engine",
-                    sizeable=True,widthHeight=(620,350))
+                    sizeable=True,widthHeight=(620,470))
     cmds.columnLayout(adjustableColumn=True,rowSpacing=13)
     cmds.text(label="STEP 1 OF 2   —   SELECT MODELING ENGINE",
               font="boldLabelFont",height=36,align="center")
-    selector=cmds.radioButtonGrp(label="Modeling engine",numberOfRadioButtons=3,
-        labelArray2=("SMPL-X","Game Character"),select=1,
-        columnWidth3=(140,140,180))
+    cmds.text(label="Modeling engine",align="left")
+    selector=cmds.radioCollection()
+    options=[]
+    for label in ("SMPL-X", "Game Character (MakeHuman)", "Human Generator (Blender 4.4)"):
+        options.append(cmds.radioButton(label=label,select=(len(options)==0)))
+    def selected_engine():
+        return options.index(cmds.radioCollection(selector,q=True,select=True))+1
     note=cmds.text(label="SMPL-X: existing parametric body/pose editor.",
                    align="center",wordWrap=True,height=60)
     def refresh(*_):
-        selected=cmds.radioButtonGrp(selector,q=True,select=True)
+        selected=selected_engine()
         if selected==1:
             cmds.text(note,e=True,label="SMPL-X: existing Live editor, betas, pose and body-joint guide. Original workflow stays intact.")
         elif selected==2:
             cmds.text(note,e=True,label="Game Character: CC0 MakeHuman base import foundation. Advanced morphs and rig still in development.")
         else:
             cmds.text(note,e=True,label="Human Generator: Blender 4.4.3 bridge. Export an existing HG character from a saved .blend file to Maya FBX.")
-    cmds.radioButtonGrp(selector,e=True,changeCommand=refresh)
+    for item in options:
+        cmds.radioButton(item,e=True,onCommand=refresh)
     cmds.separator(style="in")
     cmds.text(label="STEP 2 opens the appropriate modeling workspace. Engines use separate meshes.",
               align="center",wordWrap=True)
