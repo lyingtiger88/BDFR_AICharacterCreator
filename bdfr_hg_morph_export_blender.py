@@ -20,7 +20,7 @@ def main():
     if len(basis.data)!=len(obj.data.vertices):raise ValueError("Inconsistent topology")
     out=Path(args.out).resolve()
     out.parent.mkdir(parents=True,exist_ok=True)
-    manifest={"object":obj.name,"count":len(basis.data),"keys":[]}
+    manifest={"schema":2,"object":obj.name,"count":len(basis.data),"keys":[],"skipped":[]}
     def dump(path,block):
         with path.open("wb") as f:
             for v in block.data:
@@ -29,6 +29,14 @@ def main():
     manifest["basis"]=out.with_name(out.stem+"_basis.bin").name
     for i,key in enumerate(keys):
         if key==basis:continue
+        # Maya's basic blendShape represents Basis-relative targets.
+        # Non-Basis relative keys would silently deform the wrong shape.
+        if key.relative_key != basis:
+            manifest["skipped"].append({"name":key.name,"reason":"relative to "+key.relative_key.name+" rather than Basis"})
+            continue
+        if key.mute:
+            manifest["skipped"].append({"name":key.name,"reason":"muted in Blender"})
+            continue
         name="shape_%04d.bin"%i
         dump(out.with_name(out.stem+"_"+name),key)
         manifest["keys"].append({"name":key.name,"file":out.stem+"_"+name,
