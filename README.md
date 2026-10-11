@@ -1,3 +1,11 @@
+## Human Generator texture transfer hotfix
+
+The original HG bridge transferred Blender FBX geometry but did not reconstruct Maya texture networks. The Blender 4.4 script now copies referenced/paked image files from Principled BSDF-linked image nodes to `<FBX basename>_textures/`, and writes a `<FBX basename>.json` material image map. After FBX import, Maya attempts to reconnect Base Color (and simple scalar Metallic/Roughness) image files on same-named imported materials. In the Maya viewport press **6** to show textured shading. The FBX will not automatically recreate procedural Human Generator skin nodes, subsurface scattering, complex layer mixes, Geometry Nodes hair, or reliable tangent-space normals; these require baking and shader conversion. If materials are renamed during FBX import, see logged `[BDFR HG Materials]` warnings.
+
+Run `git pull origin main`; reload `bdfr_hg_maya_bridge` and `bdfr_character_creator_launcher`, then re-export and import. The prior grey mesh is expected from the first bridge version. Existing Maya imported meshes are not rewritten in place; use a clean scene to avoid duplicate imports. **Changes committed but not yet runtime-tested on Blender 4.4.3 / HG 4.0.26 / Maya 2027.2.**
+
+---
+
 ## Human Generator 4.0.26 Bridge — Blender 4.4.3 to Maya (first integration)
 
 The first-stage engine selector now has **three options**: SMPL-X, BDFR Game Character (MakeHuman), and **Human Generator (Blender Bridge)**. Human Generator mode opens `bdfr_hg_maya_bridge.py` where you configure Blender executable, an existing **saved .blend scene** containing a Human Generator 4.0.26 character, an FBX output path, and an optional Blender collection name. The Blender bridge uses Blender 4.4's public `bpy.ops.export_scene.fbx` to export scene meshes/armatures/empties, and Maya imports with its FBX plug-in. No Human Generator files are redistributed.
