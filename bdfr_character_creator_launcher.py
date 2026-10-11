@@ -13,14 +13,14 @@ def launch():
     if cmds.window(WINDOW,exists=True):
         cmds.deleteUI(WINDOW)
     win=cmds.window(WINDOW,title="BDFR AI Character Creator | Choose Modeling Engine",
-                    sizeable=True,widthHeight=(620,470))
+                    sizeable=True,widthHeight=(620,510))
     cmds.columnLayout(adjustableColumn=True,rowSpacing=13)
     cmds.text(label="STEP 1 OF 2   —   SELECT MODELING ENGINE",
               font="boldLabelFont",height=36,align="center")
     cmds.text(label="Modeling engine",align="left")
     selector=cmds.radioCollection()
     options=[]
-    for label in ("SMPL-X", "Game Character (MakeHuman)", "Human Generator (Blender 4.4)"):
+    for label in ("SMPL-X", "Game Character (MakeHuman)", "Human Generator (Blender 4.4)", "BDFR Native Human (Standalone Alpha)"):
         options.append(cmds.radioButton(label=label,select=(len(options)==0)))
     def selected_engine():
         for index,control in enumerate(options,1):
@@ -35,8 +35,10 @@ def launch():
             cmds.text(note,e=True,label="SMPL-X: existing Live editor, betas, pose and body-joint guide. Original workflow stays intact.")
         elif selected==2:
             cmds.text(note,e=True,label="Game Character: CC0 MakeHuman base import foundation. Advanced morphs and rig still in development.")
-        else:
+        elif selected==3:
             cmds.text(note,e=True,label="Human Generator: Blender 4.4.3 bridge. Export an existing HG character from a saved .blend file to Maya FBX.")
+        else:
+            cmds.text(note,e=True,label="BDFR Native Human: standalone Maya morph library. No Human Generator or Blender required.")
     for item in options:
         cmds.radioButton(item,e=True,onCommand=refresh)
     cmds.separator(style="in")
@@ -51,15 +53,18 @@ def launch():
             elif selected==2:
                 import bdfr_makehuman_auto
                 bdfr_makehuman_auto.launch()
-            else:
+            elif selected==3:
                 import bdfr_hg_maya_bridge
                 bdfr_hg_maya_bridge.launch()
+            else:
+                import bdfr_native_human
+                bdfr_native_human.launch()
             cmds.deleteUI(win)
         except Exception as err:
             cmds.confirmDialog(title="Engine launch failed",message=str(err),button=["OK"])
             raise
     cmds.button(label="NEXT  —  OPEN MODELING WORKSPACE",height=47,command=next_step)
-    cmds.text(label="Research-backed choice: keep SMPL-X, develop separate MakeHuman-based game workflow.",
+    cmds.text(label="Native Human is an independent Maya alpha; original engines remain available.",
               align="center")
     cmds.showWindow(win)
     return win
