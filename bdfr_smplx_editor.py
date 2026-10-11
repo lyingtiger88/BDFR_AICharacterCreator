@@ -124,12 +124,14 @@ def launch():
     cmds.separator(style="in")
     cmds.text(label="MAIN BODY CONTROLS",font="boldLabelFont")
     cmds.text(label="Sculpted morph targets only (no automatic balloon deformation)")
+    cmds.text(label="Beta controls below are learned shape components, not isolated body measurements.",wordWrap=True)
     breast=cmds.floatSliderGrp(label="Breast Size",field=True,minValue=-1,maxValue=1,value=0)
     hips=cmds.floatSliderGrp(label="Hip Width",field=True,minValue=-1,maxValue=1,value=0)
     glutes=cmds.floatSliderGrp(label="Glute Size",field=True,minValue=-1,maxValue=1,value=0)
     cmds.separator(style="in")
     cmds.text(label="ADVANCED DETAILS  |  SMPL-X Shape Betas",font="boldLabelFont")
-    slider_labels=["Gender Characteristics","Body Fatness","Abdominal Volume","Body Stature","Body Build","Hip & Pelvis Shape","Lower Body Proportions","Upper Body Proportions","Waist-to-Hip Shape","Torso Contour"]
+    # SMPL-X betas are learned PCA coefficients, NOT independent anatomical controls.
+    slider_labels=["PCA Shape Component {}".format(i+1) for i in range(10)]
     sliders=[]
     for i in range(10):
         control=cmds.floatSliderGrp(label="%02d %s"%(i+1,slider_labels[i]),field=True,
