@@ -87,10 +87,10 @@ def reconnect_materials(fbx):
                 except Exception:pass
             try:
                 if channel=="normal":
-                    bump=cmds.shadingNode("bump2d",asUtility=True,name="BDFR_HG_Normal")
-                    cmds.setAttr(bump+".bumpInterp",1)
-                    cmds.connectAttr(file_node+".outColor",bump+".bumpValue",force=True)
-                    cmds.connectAttr(bump+".outNormal",mat+"."+attr,force=True)
+                    # Correct RGB normal conversion requires a tangent-space normal node.
+                    # Keep the map extracted, do not wire an RGB signal into a scalar bump input.
+                    warnings.append("Normal texture exported, manual tangent-normal shader setup required for "+mat)
+                    continue
                 elif channel=="base_color":
                     cmds.connectAttr(file_node+".outColor",mat+"."+attr,force=True)
                 else:
