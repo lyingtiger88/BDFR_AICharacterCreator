@@ -1,3 +1,25 @@
+## Human Generator 4.0.26 Bridge — Blender 4.4.3 to Maya (first integration)
+
+The first-stage engine selector now has **three options**: SMPL-X, BDFR Game Character (MakeHuman), and **Human Generator (Blender Bridge)**. Human Generator mode opens `bdfr_hg_maya_bridge.py` where you configure Blender executable, an existing **saved .blend scene** containing a Human Generator 4.0.26 character, an FBX output path, and an optional Blender collection name. The Blender bridge uses Blender 4.4's public `bpy.ops.export_scene.fbx` to export scene meshes/armatures/empties, and Maya imports with its FBX plug-in. No Human Generator files are redistributed.
+
+Workflow:
+1. In Blender 4.4.3, use your installed and licensed HG 4.0.26 to create the character. Save your .blend. Put the finished character mesh and its rig in a dedicated Blender collection (e.g., `BDFR_HG_Export`). For deterministic background exporting, specify that collection in Maya; saved selection is not guaranteed to persist in background mode.
+2. In Maya, `git pull origin main`, then run:
+```python
+import sys, importlib
+sys.path.insert(0,r"D:\Projects\BDFR_AICharacterCreator")
+import bdfr_character_creator_launcher, bdfr_hg_maya_bridge
+importlib.reload(bdfr_hg_maya_bridge)
+importlib.reload(bdfr_character_creator_launcher)
+bdfr_character_creator_launcher.launch()
+```
+3. Select Human Generator, Next, configure the paths, **Collection** (optional), and press **EXPORT FROM BLENDER + IMPORT INTO MAYA**.
+4. Inspect Maya hierarchy, materials, shape keys and skeleton. FBX compatibility and detailed rig conversion depend on the authored Blender asset.
+
+**Limitations:** This is **not** Human Generator's native editor embedded in Maya and cannot call its proprietary UI or create/modify HG shape sliders from Maya. It is a file-based author/export/import bridge. Some Human Generator materials, hair systems, and Blender-specific modifiers will require dedicated baking/conversion; imported Blender constraints may not behave equivalently in Maya. No live testing has been performed on Blender 4.4.3 / HG 4.0.26 / Maya 2027.2. Respect the installed Human Generator asset license.
+
+---
+
 ## Engine selection wizard — SMPL-X or Game Character (prototype)
 
 New entry point: `bdfr_character_creator_launcher.py`. Run `import bdfr_character_creator_launcher; bdfr_character_creator_launcher.launch()` inside Maya Python Script Editor. **Step 1** selects SMPL-X or BDFR Game Character. **Step 2** opens the existing SMPL-X Live editor or MakeHuman CC0 base-mesh importer respectively. This is a functional workflow selector, **not** a finished game-character modeling engine.
