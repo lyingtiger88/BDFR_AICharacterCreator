@@ -1,3 +1,22 @@
+## v0.5 HG launcher visibility and Blender Shape Key controls
+
+The engine-selection window now uses separate Maya radio buttons to render three visible choices: SMPL-X, Game Character (MakeHuman), and Human Generator (Blender 4.4). This fixes the third option appearing as an unlabeled radio button.
+
+The Human Generator Bridge panel adds **OPEN BLENDER SHAPE KEY CONTROLS**. Supply Blender 4.4.3 executable and the **saved** HG 4.0.26 .blend. Scan to enumerate actual Blender mesh Shape Keys, adjust sliders in Maya, and export a separate FBX with the updated values. This uses native Blender shape keys, not proprietary HG shape/body UI functions, and it does NOT directly modify the already imported Maya mesh. The existing FBX/Albedo bridge remains available separately.
+
+Usage after `git pull origin main`:
+```python
+import sys,importlib
+sys.path.insert(0,r"D:\Projects\BDFR_AICharacterCreator")
+import bdfr_character_creator_launcher,bdfr_hg_maya_bridge,bdfr_hg_shape_keys_maya
+for module in (bdfr_hg_shape_keys_maya,bdfr_hg_maya_bridge,bdfr_character_creator_launcher):
+    importlib.reload(module)
+bdfr_character_creator_launcher.launch()
+```
+Select Human Generator > NEXT > OPEN BLENDER SHAPE KEY CONTROLS > SCAN. If no Shape Keys are found, this is expected when the HG model only contains modifier/proprietary parameters; converting the HG internal UI to native Maya sliders is a distinct integration task. Use a NEW Maya scene when importing the exported preview FBX to avoid duplicate meshes. Unverified until runtime-tested on the user's Blender/Maya installation.
+
+---
+
 ## HG skin-albedo baking fix (Blender 4.4.3)
 
 A normal map and roughness/cavity image **are not the color/albedo texture**. Human Generator 4.0.26 may build skin color through chained procedural material nodes, so merely crawling image nodes often retrieves only those utility maps. The Blender export helper now attempts a Cycles **DiffUSE COLOR-only bake** of missing Base Color into `BDFR_<mesh>_albedo.png` (2048×2048), and records it in the JSON material manifest. It requires an existing UV map and usable Cycles shader. Maya reconnects the extracted Base Color; when the imported FBX consists of a single mesh and one material, it can assign a fallback Lambert if FBX renamed the material. Existing Blender files are not overwritten; export happens in the subprocess scene.
