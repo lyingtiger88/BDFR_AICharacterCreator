@@ -1,3 +1,13 @@
+## HG Live Maya BlendShapes (experimental)
+
+The Shape Key panel now has **BIND SHAPE KEYS TO EXISTING MAYA HG_BODY (LIVE)**. Scan shape keys from your saved Blender 4.4.3 scene, then Bind. Blender exports exact Basis and target vertex positions to temporary binary files; the Maya tool builds a native `blendShape` on the existing `HG_Body` and connects slider drag/change to Maya weight attributes. Subsequent movements require **no Blender process and no FBX export**.
+
+**Safety requirement:** Existing FBX body mesh must have exactly the same vertex count and ordering as the Blender base. The binder checks count and tries signed-axis conversions + uniform scaling, then refuses RMS mismatch above 0.2% of mesh diagonal. This prevents the infamous body distortions caused by applying morph deltas to mismatched vertices. If rejected, do not force a bind: FBX may have triangulated/split vertices or the current Blender body may differ from the original import. A separate topology correspondence solution will then be required.
+
+Usage: `git pull origin main`, reload `bdfr_hg_maya_blendshapes`, `bdfr_hg_shape_keys_maya`, and the HG bridge module, reopen Human Generator > Shape Key Controls, scan, **BIND**, and adjust sliders. This operates on Blender-native Shape Keys only (including corrective keys) and is not the proprietary internal Human Generator slider API. Real-time deformation requires Maya runtime validation; commits alone do not prove success. Binding an already-bound mesh is refused rather than silently stacking deformers.
+
+---
+
 ## v0.5 HG launcher visibility and Blender Shape Key controls
 
 The engine-selection window now uses separate Maya radio buttons to render three visible choices: SMPL-X, Game Character (MakeHuman), and Human Generator (Blender 4.4). This fixes the third option appearing as an unlabeled radio button.
