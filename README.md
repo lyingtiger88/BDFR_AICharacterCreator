@@ -1,3 +1,16 @@
+## October 2026 — three-engine maintenance and safety pass
+
+Development focus is **SMPL-X**, **Game Character (MakeHuman)**, and **Human Generator Bridge**; the fourth experimental **BDFR Native Human** engine has not been changed or removed.
+
+- **Human Generator shape-key bridge:** the Blender export now rejects absolute Shape Keys and skips targets that are non-Basis-relative, muted, or restricted by a vertex-group mask. The Maya binder warns about skipped keys and removes a partially created blendShape if target construction fails. These cases need dedicated conversion before they can be reliably represented as Maya blendShapes. Standard Basis-relative, unmasked shape keys remain supported.
+- **MakeHuman loader:** each OBJ import now has a unique namespace, preventing cleanup of helper meshes from an earlier character instance. The base asset comes from MakeHuman's upstream project and its bundled graphical assets are CC0; the upstream application source has a separate AGPL license. Confirm licensing for any downloaded third-party assets.
+- **SMPL-X editor:** renamed the ten beta sliders as learned PCA Shape Components 1–10; they must not be described as independent anatomical measurements.
+- **Testing:** these are code changes committed to GitHub, not a claim of runtime validation on Maya 2027.2 / Blender 4.4.3.
+
+Official references: [Autodesk Maya blendShape flags](https://help.autodesk.com/cloudhelp/2025/ENU/Maya-Tech-Docs/CommandsPython/blendShape.html), [Blender ShapeKey API](https://docs.blender.org/api/4.5/bpy.types.ShapeKey.html), [MakeHuman licensing](https://github.com/makehumancommunity/makehuman/blob/master/LICENSE.md).
+
+---
+
 ## Unified Character Creator launcher (development UI simplification)
 
 The default launcher now shows **CREATE CHARACTER** (opens BDFR Native Human alpha) and **OPEN CHARACTER SCENE** (opens Maya's native scene picker). The existing SMPL-X, MakeHuman, Human Generator Bridge, and Native Morph Lab are preserved under the collapsed **ADVANCED / DEVELOPMENT TOOLS** section. No engine has been removed; the launcher is now a single entry point rather than a mandatory four-engine selection page.
