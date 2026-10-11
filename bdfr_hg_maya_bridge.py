@@ -111,6 +111,53 @@ def reconnect_materials(fbx, imported_shapes=None):
                 warnings.append(str(exc))
     return {"connected":connected,"warnings":warnings}
 
+
+def apply_body_albedo(fbx=None, mesh="HG_Body"):
+    """Assign a dedicated textured Lambert to the actual imported body mesh.
+
+    Works on a previously imported scene, not only fresh FBX imports.
+    Avoids assuming that FBX material names survive the Blender->Maya transfer.
+    """
+    roots=cmds.ls(mesh,type="transform",long=True) or []
+    if not roots:
+        roots=[node for node in (cmds.ls(type="transform",long=True) or [])
+               if node.split("|")[-1].split(":")[-1]==mesh]
+    roots=[node for node in roots if cmds.listRelatives(
+        node,shapes=True,noIntermediate=True,type="mesh")]
+    if len(roots)!=1:
+        raise RuntimeError("Expected exactly one HG_Body polygon transform, found {}".format(len(roots)))
+    body=roots[0]
+    if fbx:
+        output=Path(fbx)
+        texture_dir=output.parent/(output.stem+"_textures")
+    else:
+        texture_dir=Path.home()/"Documents"/"BDFR_HG_Character_textures"
+    maps=sorted(texture_dir.glob("*_albedo.png"))
+    if len(maps)!=1:
+        raise RuntimeError("Expected one baked albedo in {} (found {})".format(texture_dir,len(maps)))
+    albedo=maps[0]
+    # Reuse dedicated shader if this command is run again.
+    shader="BDFR_HG_Body_Albedo"
+    shading_group="BDFR_HG_Body_AlbedoSG"
+    file_node="BDFR_HG_Body_Albedo_File"
+    if not cmds.objExists(shader):
+        shader=cmds.shadingNode("lambert",asShader=True,name=shader)
+    if not cmds.objExists(shading_group):
+        shading_group=cmds.sets(renderable=True,noSurfaceShader=True,empty=True,name=shading_group)
+    cmds.connectAttr(shader+".outColor",shading_group+".surfaceShader",force=True)
+    if not cmds.objExists(file_node):
+        file_node=cmds.shadingNode("file",asTexture=True,name=file_node)
+        place=cmds.shadingNode("place2dTexture",asUtility=True,name="BDFR_HG_Body_Albedo_UV")
+        cmds.connectAttr(place+".outUV",file_node+".uvCoord",force=True)
+        cmds.connectAttr(place+".outUvFilterSize",file_node+".uvFilterSize",force=True)
+    cmds.setAttr(file_node+".fileTextureName",str(albedo.resolve()),type="string")
+    cmds.connectAttr(file_node+".outColor",shader+".color",force=True)
+    cmds.sets(body,edit=True,forceElement=shading_group)
+    # Maya hardware texture display is viewport-specific; do not mutate global UI.
+    uvsets=cmds.polyUVSet(body,query=True,allUVSets=True) or []
+    print("[BDFR HG] Albedo linked: {} -> {}, UV sets: {}".format(albedo,body,uvsets))
+    return {"body":body,"albedo":str(albedo),"uv_sets":uvsets}
+
 def launch():
     if cmds.window(WINDOW,exists=True):cmds.deleteUI(WINDOW)
     w=cmds.window(WINDOW,title="BDFR | Human Generator Blender Bridge",
@@ -141,12 +188,25 @@ def launch():
             imported=import_human(target)
             material_result=reconnect_materials(target,imported)
             print("[BDFR HG Materials]",material_result)
+            try:
+                apply_body_albedo(target)
+            except Exception as e:
+                cmds.warning("[BDFR HG] Body albedo direct assignment: "+str(e))
             cmds.confirmDialog(title="Human Generator bridge",message="Character imported. Texture connections: {}. Warnings: {}.\nPress 6 in viewport for textured display.".format(material_result["connected"],len(material_result["warnings"])),button=["OK"])
         except Exception as exc:
             cmds.confirmDialog(title="Human Generator bridge error",message=str(exc)[-1800:],button=["OK"])
         finally:
             cmds.waitCursor(state=False)
     cmds.button(label="EXPORT FROM BLENDER + IMPORT INTO MAYA",height=43,command=run)
+    def fix_existing(*_):
+        try:
+            output=cmds.textFieldButtonGrp(out,q=True,text=True).strip()
+            result=apply_body_albedo(output)
+            cmds.confirmDialog(title="HG Albedo",message="Applied to {}. UV sets: {}. Press 6 to view.".format(
+                result["body"],", ".join(result["uv_sets"])),button=["OK"])
+        except Exception as exc:
+            cmds.confirmDialog(title="HG Albedo error",message=str(exc),button=["OK"])
+    cmds.button(label="APPLY BAKED ALBEDO TO EXISTING HG_BODY",height=36,command=fix_existing)
     cmds.text(label="Supports authored .blend characters; not live HG sliders or native HG generation in Maya.",wordWrap=True)
     cmds.showWindow(w)
     return w
