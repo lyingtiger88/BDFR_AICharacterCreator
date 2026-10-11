@@ -23,7 +23,10 @@ def launch():
     for label in ("SMPL-X", "Game Character (MakeHuman)", "Human Generator (Blender 4.4)"):
         options.append(cmds.radioButton(label=label,select=(len(options)==0)))
     def selected_engine():
-        return options.index(cmds.radioCollection(selector,q=True,select=True))+1
+        for index,control in enumerate(options,1):
+            if cmds.radioButton(control,q=True,select=True):
+                return index
+        raise RuntimeError("No modeling engine selected")
     note=cmds.text(label="SMPL-X: existing parametric body/pose editor.",
                    align="center",wordWrap=True,height=60)
     def refresh(*_):
@@ -40,7 +43,7 @@ def launch():
     cmds.text(label="STEP 2 opens the appropriate modeling workspace. Engines use separate meshes.",
               align="center",wordWrap=True)
     def next_step(*_):
-        selected=cmds.radioButtonGrp(selector,q=True,select=True)
+        selected=selected_engine()
         try:
             if selected==1:
                 import bdfr_smplx_editor
