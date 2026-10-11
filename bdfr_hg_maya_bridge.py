@@ -5,6 +5,7 @@ must have Human Generator installed/licensed and a saved .blend character scene.
 """
 from pathlib import Path
 import subprocess
+import json
 import maya.cmds as cmds
 
 WINDOW="BDFRHumanGeneratorBridge"
@@ -45,6 +46,60 @@ def import_human(fbx):
               preserveReferences=True,options="fbx")
     return str(fbx)
 
+
+def reconnect_materials(fbx):
+    """Reconnect extracted image maps to FBX-imported Maya materials."""
+    report_path=Path(fbx).with_suffix(".json")
+    if not report_path.is_file():return {"connected":0,"warnings":["Missing texture manifest"]}
+    report=json.loads(report_path.read_text(encoding="utf-8"))
+    entries=report.get("materials",{})
+    found=cmds.ls(materials=True) or []
+    connected=0
+    warnings=list(report.get("texture_copy_failures",[]))
+    for original,info in entries.items():
+        # Namespace prefixes are common after FBX import.
+        matching=[n for n in found if n.split(":")[-1]==original]
+        if not matching:
+            warnings.append("Maya material not found: "+original)
+            continue
+        mat=matching[-1]
+        for channel,path in info.get("images",{}).items():
+            if not Path(path).is_file():
+                warnings.append("Texture file missing: "+path)
+                continue
+            target_attr={"base_color":("color","baseColor"),
+                         "roughness":("specularRoughness","roughness"),
+                         "metallic":("metalness","metallic"),
+                         "normal":("normalCamera","normalCamera")}.get(channel)
+            if not target_attr:continue
+            attr=next((attr for attr in target_attr if cmds.attributeQuery(attr,node=mat,exists=True)),None)
+            if not attr:
+                warnings.append("Unsupported material channel: "+mat+"."+channel)
+                continue
+            name="BDFR_HG_"+channel.replace("_","")+"Texture"
+            file_node=cmds.shadingNode("file",asTexture=True,name=name)
+            place=cmds.shadingNode("place2dTexture",asUtility=True,name="BDFR_HG_place2d")
+            for src,dst in (("outUV","uvCoord"),("outUvFilterSize","uvFilterSize")):
+                cmds.connectAttr(place+"."+src,file_node+"."+dst,force=True)
+            cmds.setAttr(file_node+".fileTextureName",str(Path(path).resolve()),type="string")
+            if channel!="base_color" and cmds.attributeQuery("colorSpace",node=file_node,exists=True):
+                try:cmds.setAttr(file_node+".colorSpace","Raw",type="string")
+                except Exception:pass
+            try:
+                if channel=="normal":
+                    bump=cmds.shadingNode("bump2d",asUtility=True,name="BDFR_HG_Normal")
+                    cmds.setAttr(bump+".bumpInterp",1)
+                    cmds.connectAttr(file_node+".outColor",bump+".bumpValue",force=True)
+                    cmds.connectAttr(bump+".outNormal",mat+"."+attr,force=True)
+                elif channel=="base_color":
+                    cmds.connectAttr(file_node+".outColor",mat+"."+attr,force=True)
+                else:
+                    cmds.connectAttr(file_node+".outColorR",mat+"."+attr,force=True)
+                connected+=1
+            except Exception as exc:
+                warnings.append(str(exc))
+    return {"connected":connected,"warnings":warnings}
+
 def launch():
     if cmds.window(WINDOW,exists=True):cmds.deleteUI(WINDOW)
     w=cmds.window(WINDOW,title="BDFR | Human Generator Blender Bridge",
@@ -73,7 +128,9 @@ def launch():
             log=export_human(exe,source,target,coll)
             print("[BDFR HG Bridge]",log[-1000:])
             import_human(target)
-            cmds.confirmDialog(title="Human Generator bridge",message="Character FBX exported and imported into Maya.",button=["OK"])
+            material_result=reconnect_materials(target)
+            print("[BDFR HG Materials]",material_result)
+            cmds.confirmDialog(title="Human Generator bridge",message="Character imported. Texture connections: {}. Warnings: {}.\nPress 6 in viewport for textured display.".format(material_result["connected"],len(material_result["warnings"])),button=["OK"])
         except Exception as exc:
             cmds.confirmDialog(title="Human Generator bridge error",message=str(exc)[-1800:],button=["OK"])
         finally:
