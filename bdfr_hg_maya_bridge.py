@@ -40,14 +40,16 @@ def import_human(fbx):
     if not Path(fbx).is_file():raise FileNotFoundError(fbx)
     if not cmds.pluginInfo("fbxmaya",q=True,loaded=True):
         cmds.loadPlugin("fbxmaya",quiet=True)
-    # Use FBX import flags rather than opening a new Maya scene.
+    # Track only meshes from this import for safe fallback material assignment.
+    before=set(cmds.ls(type="mesh",long=True) or [])
     cmds.file(str(fbx),i=True,type="FBX",ignoreVersion=True,
               mergeNamespacesOnClash=False,namespace="BDFRHumanGenerator",
               preserveReferences=True,options="fbx")
-    return str(fbx)
+    after=set(cmds.ls(type="mesh",long=True) or [])
+    return sorted(after-before)
 
 
-def reconnect_materials(fbx):
+def reconnect_materials(fbx, imported_shapes=None):
     """Reconnect extracted image maps to FBX-imported Maya materials."""
     report_path=Path(fbx).with_suffix(".json")
     if not report_path.is_file():return {"connected":0,"warnings":["Missing texture manifest"]}
@@ -56,12 +58,21 @@ def reconnect_materials(fbx):
     found=cmds.ls(materials=True) or []
     connected=0
     warnings=list(report.get("texture_copy_failures",[]))
+    imported_shapes=imported_shapes or []
     for original,info in entries.items():
         # Namespace prefixes are common after FBX import.
         matching=[n for n in found if n.split(":")[-1]==original]
         if not matching:
-            warnings.append("Maya material not found: "+original)
-            continue
+            # Single mesh/material FBX fallback: preserve all other scene shading.
+            if len(entries)==1 and len(imported_shapes)==1:
+                mat=cmds.shadingNode("lambert",asShader=True,name="BDFR_HG_Skin")
+                sg=cmds.sets(renderable=True,noSurfaceShader=True,empty=True,name="BDFR_HG_SkinSG")
+                cmds.connectAttr(mat+".outColor",sg+".surfaceShader",force=True)
+                cmds.sets(imported_shapes[0],edit=True,forceElement=sg)
+                matching=[mat]
+            else:
+                warnings.append("Maya material not found: "+original)
+                continue
         mat=matching[-1]
         for channel,path in info.get("images",{}).items():
             if not Path(path).is_file():
@@ -127,8 +138,8 @@ def launch():
             cmds.waitCursor(state=True)
             log=export_human(exe,source,target,coll)
             print("[BDFR HG Bridge]",log[-1000:])
-            import_human(target)
-            material_result=reconnect_materials(target)
+            imported=import_human(target)
+            material_result=reconnect_materials(target,imported)
             print("[BDFR HG Materials]",material_result)
             cmds.confirmDialog(title="Human Generator bridge",message="Character imported. Texture connections: {}. Warnings: {}.\nPress 6 in viewport for textured display.".format(material_result["connected"],len(material_result["warnings"])),button=["OK"])
         except Exception as exc:
