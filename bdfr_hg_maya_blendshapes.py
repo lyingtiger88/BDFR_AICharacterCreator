@@ -71,6 +71,12 @@ def bind(blender,blend,source_object="HG_Body",target="HG_Body"):
         if proc.returncode or not path.exists():
             raise RuntimeError("Blender Shape Key extraction failed:\n"+(proc.stdout+proc.stderr)[-2500:])
         manifest=json.loads(path.read_text(encoding="utf-8"))
+        skipped=manifest.get("skipped",[])
+        if skipped:
+            cmds.warning("[BDFR HG] Skipped {} muted or non-Basis-relative shape keys: {}".format(
+                len(skipped),", ".join(x["name"] for x in skipped)))
+        if not manifest.get("keys"):
+            raise ValueError("No Basis-relative, unmuted Shape Keys are available to bind.")
         n=manifest["count"]
         if n!=len(maya):raise ValueError("Vertex count mismatch: Blender {}, Maya {}. Cannot safely bind shape keys.".format(n,len(maya)))
         basis=_binary(Path(folder)/manifest["basis"],n)
@@ -82,6 +88,7 @@ def bind(blender,blend,source_object="HG_Body",target="HG_Body"):
         if cmds.objExists(name):
             raise ValueError("BlendShape already exists. Delete it explicitly before rebuilding.")
         targets=[]
+        blend_node=None
         try:
             for entry in manifest["keys"]:
                 sculpt=_binary(Path(folder)/entry["file"],n)
@@ -105,6 +112,11 @@ def bind(blender,blend,source_object="HG_Body",target="HG_Body"):
                 aliases[(source_object,entry["name"])]=(blend_node,alias,float(entry["min"]),float(entry["max"]))
                 cmds.setAttr(blend_node+".weight[{}]".format(index),max(entry["min"],min(entry["max"],entry["value"])))
             return aliases
+        except Exception:
+            # Do not leave an incomplete deformer if Maya refuses any target.
+            if blend_node and cmds.objExists(blend_node):
+                cmds.delete(blend_node)
+            raise
         finally:
             for _,duplicate in targets:
                 if cmds.objExists(duplicate):cmds.delete(duplicate)
