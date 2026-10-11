@@ -1,70 +1,65 @@
-"""BDFR Character Creator — engine selection before mesh generation.
+"""BDFR AI Character Creator — unified Maya entry point.
 
-SMPL-X keeps its established editor. The alternative uses the already present
-official MakeHuman CC0 base-mesh import path (early experimental Game Character mode).
-No claim of finished game-ready anatomy, LODs, UVs, skinning or Unreal retargeting.
+Default: native editor. Optional legacy engines live under Advanced Tools.
+No external imports happen until the corresponding button is pressed.
 """
 import maya.cmds as cmds
 
-WINDOW="BDFRCharacterCreatorEngineSelect"
-PAGES={"smplx":"SMPL-X Parametric","game":"BDFR Game Character (MakeHuman foundation)","hg":"Human Generator 4.0.26 (Blender Bridge)"}
+WINDOW = "BDFRCharacterCreatorEngineSelect"
+
+def _open(module_name, window):
+    import importlib
+    try:
+        module = importlib.import_module(module_name)
+        module.launch()
+    except Exception as exc:
+        cmds.confirmDialog(title="BDFR — Unable to open tool",
+                           message=str(exc)[-1500:], button=["OK"])
+        cmds.warning("[BDFR] "+str(exc))
+        return
+    if cmds.window(window, exists=True):
+        cmds.deleteUI(window)
 
 def launch():
-    if cmds.window(WINDOW,exists=True):
+    if cmds.window(WINDOW, exists=True):
         cmds.deleteUI(WINDOW)
-    win=cmds.window(WINDOW,title="BDFR AI Character Creator | Choose Modeling Engine",
-                    sizeable=True,widthHeight=(620,510))
-    cmds.columnLayout(adjustableColumn=True,rowSpacing=13)
-    cmds.text(label="STEP 1 OF 2   —   SELECT MODELING ENGINE",
-              font="boldLabelFont",height=36,align="center")
-    cmds.text(label="Modeling engine",align="left")
-    selector=cmds.radioCollection()
-    options=[]
-    for label in ("SMPL-X", "Game Character (MakeHuman)", "Human Generator (Blender 4.4)", "BDFR Native Human (Standalone Alpha)"):
-        options.append(cmds.radioButton(label=label,select=(len(options)==0)))
-    def selected_engine():
-        for index,control in enumerate(options,1):
-            if cmds.radioButton(control,q=True,select=True):
-                return index
-        raise RuntimeError("No modeling engine selected")
-    note=cmds.text(label="SMPL-X: existing parametric body/pose editor.",
-                   align="center",wordWrap=True,height=60)
-    def refresh(*_):
-        selected=selected_engine()
-        if selected==1:
-            cmds.text(note,e=True,label="SMPL-X: existing Live editor, betas, pose and body-joint guide. Original workflow stays intact.")
-        elif selected==2:
-            cmds.text(note,e=True,label="Game Character: CC0 MakeHuman base import foundation. Advanced morphs and rig still in development.")
-        elif selected==3:
-            cmds.text(note,e=True,label="Human Generator: Blender 4.4.3 bridge. Export an existing HG character from a saved .blend file to Maya FBX.")
-        else:
-            cmds.text(note,e=True,label="BDFR Native Human: standalone Maya morph library. No Human Generator or Blender required.")
-    for item in options:
-        cmds.radioButton(item,e=True,onCommand=refresh)
+    win = cmds.window(WINDOW,title="BDFR AI Character Creator",
+                      widthHeight=(540,400),sizeable=True)
+    cmds.columnLayout(adjustableColumn=True,rowSpacing=12)
+    cmds.text(label="BDFR AI CHARACTER CREATOR",
+              font="boldLabelFont",height=48,align="center")
+    cmds.text(label="Create and edit characters in Maya",
+              align="center",height=22)
     cmds.separator(style="in")
-    cmds.text(label="STEP 2 opens the appropriate modeling workspace. Engines use separate meshes.",
-              align="center",wordWrap=True)
-    def next_step(*_):
-        selected=selected_engine()
+    cmds.button(label="CREATE CHARACTER",height=54,
+                annotation="Open BDFR Native Human editor",
+                command=lambda *_:_open("bdfr_native_human",win))
+    def open_existing(*_):
+        # Maya scene import/open uses native file picker; do not overwrite
+        # the current scene or silently discard unsaved work.
         try:
-            if selected==1:
-                import bdfr_smplx_editor
-                bdfr_smplx_editor.launch()
-            elif selected==2:
-                import bdfr_makehuman_auto
-                bdfr_makehuman_auto.launch()
-            elif selected==3:
-                import bdfr_hg_maya_bridge
-                bdfr_hg_maya_bridge.launch()
-            else:
-                import bdfr_native_human
-                bdfr_native_human.launch()
-            cmds.deleteUI(win)
-        except Exception as err:
-            cmds.confirmDialog(title="Engine launch failed",message=str(err),button=["OK"])
-            raise
-    cmds.button(label="NEXT  —  OPEN MODELING WORKSPACE",height=47,command=next_step)
-    cmds.text(label="Native Human is an independent Maya alpha; original engines remain available.",
-              align="center")
+            files=cmds.fileDialog2(fileMode=1,caption="Open Character Maya Scene",
+                                   fileFilter="Maya Files (*.ma *.mb)")
+            if not files:return
+            cmds.file(files[0],open=True,force=False,prompt=True)
+        except Exception as exc:
+            cmds.confirmDialog(title="Open Character",message=str(exc)[-1500:],button=["OK"])
+    cmds.button(label="OPEN CHARACTER SCENE",height=48,command=open_existing)
+    cmds.separator(style="in")
+    cmds.frameLayout(label="ADVANCED / DEVELOPMENT TOOLS",
+                     collapsable=True,collapse=True,marginHeight=10,marginWidth=10)
+    cmds.columnLayout(adjustableColumn=True,rowSpacing=7)
+    cmds.button(label="SMPL-X Parametric Editor",
+                command=lambda *_:_open("bdfr_smplx_editor",win))
+    cmds.button(label="Game Character / MakeHuman Base Loader",
+                command=lambda *_:_open("bdfr_makehuman_auto",win))
+    cmds.button(label="Human Generator — Blender Bridge",
+                command=lambda *_:_open("bdfr_hg_maya_bridge",win))
+    cmds.button(label="BDFR Native Human Morph Lab",
+                command=lambda *_:_open("bdfr_native_human",win))
+    cmds.setParent("..")
+    cmds.setParent("..")
+    cmds.text(label="Native editor is an early alpha. Full character authoring features are in development.",
+              wordWrap=True,align="center",height=38)
     cmds.showWindow(win)
     return win
