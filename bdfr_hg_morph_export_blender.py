@@ -21,6 +21,8 @@ def main():
     out=Path(args.out).resolve()
     out.parent.mkdir(parents=True,exist_ok=True)
     manifest={"schema":2,"object":obj.name,"count":len(basis.data),"keys":[],"skipped":[]}
+    if not obj.data.shape_keys.use_relative:
+        raise ValueError("Absolute Shape Keys are not supported by the live Maya relative blendShape bridge")
     def dump(path,block):
         with path.open("wb") as f:
             for v in block.data:
@@ -33,6 +35,9 @@ def main():
         # Non-Basis relative keys would silently deform the wrong shape.
         if key.relative_key != basis:
             manifest["skipped"].append({"name":key.name,"reason":"relative to "+key.relative_key.name+" rather than Basis"})
+            continue
+        if key.vertex_group:
+            manifest["skipped"].append({"name":key.name,"reason":"vertex group mask requires separate transfer"})
             continue
         if key.mute:
             manifest["skipped"].append({"name":key.name,"reason":"muted in Blender"})
