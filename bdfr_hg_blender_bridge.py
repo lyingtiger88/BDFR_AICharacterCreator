@@ -10,6 +10,77 @@ import shutil
 import re
 from pathlib import Path
 
+
+def bake_missing_albedo(bpy, objects, textures, manifest, failures, size=2048):
+    """Bake material diffuse COLOR only. Runs in the disposable background scene.
+
+    Blender needs an active image texture node in every material slot. Uses
+    Cycles diffuse color pass, excluding direct/indirect lighting.
+    """
+    scene=bpy.context.scene
+    prior_engine=scene.render.engine
+    prior_selected=list(bpy.context.selected_objects)
+    prior_active=bpy.context.view_layer.objects.active
+    baked=0
+    try:
+        scene.render.engine="CYCLES"
+        scene.cycles.samples=1
+        scene.render.bake.use_pass_color=True
+        scene.render.bake.use_pass_direct=False
+        scene.render.bake.use_pass_indirect=False
+        scene.render.bake.margin=8
+        for obj in objects:
+            if obj.type!="MESH" or not obj.data.uv_layers:
+                if obj.type=="MESH" and not obj.data.uv_layers:
+                    failures.append(obj.name+": no UV map; cannot bake albedo")
+                continue
+            materials=[slot.material for slot in obj.material_slots if slot.material]
+            if not materials:
+                failures.append(obj.name+": no material assigned")
+                continue
+            # Only bake meshes whose own material lacks a traceable albedo.
+            missing=[mat for mat in materials if not manifest.get(mat.name,{}).get("images",{}).get("base_color")]
+            if not missing:continue
+            image=bpy.data.images.new("BDFR_Albedo_"+obj.name,width=size,height=size,alpha=False)
+            image.file_format="PNG"
+            target_nodes=[]
+            for mat in materials:
+                mat.use_nodes=True
+                node=mat.node_tree.nodes.new("ShaderNodeTexImage")
+                node.name="BDFR_BAKE_ALBEDO"
+                node.image=image
+                mat.node_tree.nodes.active=node
+                target_nodes.append((mat,node))
+            try:
+                bpy.ops.object.select_all(action="DESELECT")
+                obj.hide_set(False)
+                obj.select_set(True)
+                bpy.context.view_layer.objects.active=obj
+                bpy.ops.object.bake(type="DIFFUSE",use_clear=True)
+                safe=re.sub(r"[^a-zA-Z0-9_.-]","_",obj.name)[:70]
+                dest=textures/("BDFR_"+safe+"_albedo.png")
+                image.filepath_raw=str(dest)
+                image.save()
+                for mat in missing:
+                    manifest[mat.name]["images"]["base_color"]=str(dest)
+                baked+=1
+            except Exception as exc:
+                failures.append("Albedo bake for "+obj.name+": "+str(exc))
+            finally:
+                for mat,node in target_nodes:
+                    if mat.node_tree and node.name in mat.node_tree.nodes:
+                        mat.node_tree.nodes.remove(node)
+                bpy.data.images.remove(image)
+    finally:
+        scene.render.engine=prior_engine
+        bpy.ops.object.select_all(action="DESELECT")
+        for obj in prior_selected:
+            try:obj.select_set(True)
+            except Exception:pass
+        try:bpy.context.view_layer.objects.active=prior_active
+        except Exception:pass
+    return baked
+
 def main():
     import bpy
     parser=argparse.ArgumentParser()
@@ -82,11 +153,12 @@ def main():
                                 break
                             stack.extend(link.from_node for inp in current.inputs for link in inp.links)
             material_manifest[mat.name]=record
+    albedo_bakes=bake_missing_albedo(bpy,selected,textures,material_manifest,failures)
     report={"status":"ok","blender":bpy.app.version_string,
             "objects":len(selected),"meshes":sum(o.type=="MESH" for o in selected),
             "armatures":sum(o.type=="ARMATURE" for o in selected),
             "fbx":str(target),
-            "materials":material_manifest,
+            "materials":material_manifest,"albedo_bakes":albedo_bakes,
             "texture_copy_failures":failures,
             "note":"Objects exported from Blender scene; HG API not invoked."}
     report_path=target.with_suffix(".json")
