@@ -83,7 +83,13 @@ def create_real_body():
     path=ensure_base_mesh()
     before=set(cmds.ls(type="mesh",long=True) or [])
     cmds.loadPlugin("objExport",quiet=True)
+    # Every import receives its own namespace, so helper cleanup never
+    # touches previously imported characters in the same scene.
     namespace="BDFRMakeHuman"
+    suffix=2
+    while cmds.namespace(exists=namespace):
+        namespace="BDFRMakeHuman{}".format(suffix)
+        suffix+=1
     cmds.file(str(path),i=True,type="OBJ",ignoreVersion=True,
               mergeNamespacesOnClash=True,namespace=namespace,
               options="mo=1",preserveReferences=True)
