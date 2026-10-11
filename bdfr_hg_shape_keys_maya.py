@@ -37,7 +37,7 @@ def launch(blender="",blend=""):
     cmds.columnLayout(adjustableColumn=True,rowSpacing=7)
     cmds.text(label="NATIVE BLENDER SHAPE KEYS — OPTIONAL HG CONTROLS",
               font="boldLabelFont",height=35)
-    cmds.text(label="Only shape keys present on saved meshes are listed; not HG internal sliders.",
+    cmds.text(label="Scan, then BIND to HG_Body to activate realtime Maya blendShape sliders.",
               align="center",wordWrap=True)
     exe=cmds.textFieldGrp(label="Blender",text=blender or _find_blender())
     source=cmds.textFieldGrp(label="Blend file",text=blend)
@@ -47,6 +47,14 @@ def launch(blender="",blend=""):
     scroll=cmds.scrollLayout(childResizable=True,height=360)
     content=cmds.columnLayout(adjustableColumn=True)
     controls={}
+    native={}
+    def update_maya(obj,key,slider):
+        binding=native.get((obj,key))
+        if not binding:return
+        node,alias,low,high=binding
+        if not cmds.objExists(node):return
+        value=cmds.floatSliderGrp(slider,q=True,value=True)
+        cmds.setAttr(node+"."+alias,max(low,min(high,value)))
     def read(*_):
         for child in cmds.columnLayout(content,q=True,childArray=True) or []:
             cmds.deleteUI(child)
@@ -63,7 +71,11 @@ def launch(blender="",blend=""):
                             fieldMinValue=item["min"],fieldMaxValue=item["max"],
                             value=item["value"])
                     controls[(obj,item["name"])]=slider
-            cmds.text(status,e=True,label="Found {} Blender shape keys.".format(len(controls)))
+            for (obj,key),slider in controls.items():
+                cmds.floatSliderGrp(slider,e=True,
+                    dragCommand=lambda *_,o=obj,k=key,c=slider:update_maya(o,k,c),
+                    changeCommand=lambda *_,o=obj,k=key,c=slider:update_maya(o,k,c))
+            cmds.text(status,e=True,label="Found {} Blender shape keys. Bind to Maya to enable Live changes.".format(len(controls)))
         except Exception as err:
             cmds.warning("[BDFR HG ShapeKeys] "+str(err))
     cmds.setParent("..")
@@ -85,6 +97,24 @@ def launch(blender="",blend=""):
               button=["OK"])
         except Exception as err:
             cmds.confirmDialog(title="ShapeKey error",message=str(err)[-2000:],button=["OK"])
+    def bind_live(*_):
+        import bdfr_hg_maya_blendshapes
+        try:
+            found=bdfr_hg_maya_blendshapes.bind(
+                cmds.textFieldGrp(exe,q=True,text=True).strip(),
+                cmds.textFieldGrp(source,q=True,text=True).strip())
+            native.clear()
+            native.update(found)
+            cmds.text(status,e=True,label="LIVE MAYA BLENDSHAPES: {} controls connected".format(len(found)))
+            print("[BDFR HG] Bound {} live shape keys to HG_Body".format(len(found)))
+            for (obj,key),control in controls.items():
+                update_maya(obj,key,control)
+        except Exception as err:
+            cmds.confirmDialog(title="Maya BlendShape binding failed",
+                message=str(err)[-2000:],button=["OK"])
+            raise
+    cmds.button(label="BIND SHAPE KEYS TO EXISTING MAYA HG_BODY (LIVE)",
+                height=43,command=bind_live)
     cmds.button(label="EXPORT UPDATED SHAPE KEY MESH TO FBX",height=38,command=apply)
     cmds.showWindow(win)
     return win
