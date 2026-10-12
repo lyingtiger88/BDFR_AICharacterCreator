@@ -1,6 +1,6 @@
 """BDFR AI Character Creator — select modeling engine (restored).
 
-Four development modeling engines remain separate; this is the familiar
+Three active modeling engines remain separate; this is the familiar
 selection menu, not the experimental unified Create/Open home screen.
 """
 import maya.cmds as cmds
@@ -14,19 +14,17 @@ ENGINES = (
      "MakeHuman-based CC0 game character base mesh."),
     ("Human Generator (Blender Bridge)", "bdfr_hg_maya_bridge",
      "Human Generator Blender-to-Maya character bridge."),
-    ("BDFR Native Human (Standalone Alpha)", "bdfr_native_human",
-     "Experimental standalone Maya mesh and Morph authoring."),
 )
 
 def launch():
     if cmds.window(WINDOW,exists=True):
         cmds.deleteUI(WINDOW)
     win=cmds.window(WINDOW,title="BDFR AI Character Creator | Modeling Engines",
-                    sizeable=True,widthHeight=(620,450))
+                    sizeable=True,widthHeight=(620,405))
     cmds.columnLayout(adjustableColumn=True,rowSpacing=10)
-    cmds.text(label="SELECT MODELING ENGINE",
+    cmds.text(label="CREATE CHARACTER — SELECT MODEL",
               font="boldLabelFont",align="center",height=38)
-    cmds.text(label="Choose which character modeling workflow to open.",
+    cmds.text(label="Choose one of the three active character creation workflows.",
               align="center",height=25)
     cmds.separator(style="in")
     collection=cmds.radioCollection()
@@ -64,7 +62,7 @@ def launch():
 
     cmds.button(label="NEXT — OPEN MODELING WORKSPACE",
                 height=48,command=next_step)
-    cmds.text(label="All four engines are available; none has been removed.",
+    cmds.text(label="BDFR Native Human development is paused; its code is preserved.",
               align="center",height=25)
     cmds.showWindow(win)
     return win
