@@ -115,6 +115,10 @@ def launch():
     cmds.scrollLayout(childResizable=True)
     cmds.columnLayout(adjustableColumn=True,rowSpacing=7)
     cmds.text(label="SMPL-X | Body / Hands / Expression",font="boldLabelFont",height=36)
+    cmds.text(label="STEP 1: Check Python and model weights below. STEP 2: Create your character.")
+    create_button=cmds.button(label="CREATE SMPL-X CHARACTER IN MAYA",height=48)
+    cmds.text(label="The character appears in the Maya viewport after generation.",
+              wordWrap=True,align="center")
     cmds.text(label="Shape changes run asynchronously; last slider state wins.")
     py=cmds.textFieldGrp(label="Python",text=cfg.get("python") or str(DEFAULT_PYTHON))
     models=cmds.textFieldGrp(label="Model weights",text=cfg.get("models") or str(DEFAULT_MODELS))
@@ -174,6 +178,7 @@ def launch():
             "hip_width":cmds.floatSliderGrp(hips,q=True,value=True),
             "glute_size":cmds.floatSliderGrp(glutes,q=True,value=True)})
     STATE["live_controller"]=live
+    cmds.button(create_button,e=True,command=lambda *_:call(new=True))
     # Sculpt workflow. Capture a base, duplicate and sculpt the mesh (same
     # topology); save the sculpt as a sparse morph for this exact shape/pose.
     morph_state={"base":None,"reference":None,"folder":None}
@@ -355,6 +360,6 @@ def launch():
     cmds.text(label="Detail sliders require matching artist-sculpted morphs; otherwise no-op.")
     cmds.text(label="10 shape coefficients are PCA dimensions, not labeled anatomical controls.")
     cmds.text(label="First expression coefficient is not guaranteed to be a smile.")
-    cmds.text(label="Beta names are observed tendencies, not isolated anatomical controls.")
+    cmds.text(label="Use CREATE SMPL-X CHARACTER above to generate the initial mesh.")
     cmds.showWindow(win)
     return win
