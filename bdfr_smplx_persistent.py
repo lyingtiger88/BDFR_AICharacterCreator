@@ -171,10 +171,31 @@ class PersistentController(QtCore.QObject):
             transform=TARGET
         else:
             ids=struct.unpack("<"+"i"*(face_count*3),faces_raw)
+            # MFnMesh.create() may return the mesh shape or its parent transform,
+            # depending on the Maya API context. Resolve from the actual mesh
+            # shape rather than blindly calling parent(0) on the returned object.
             obj=om.MFnMesh().create(points,[3]*face_count,list(ids))
-            dag=om.MFnDagNode(obj)
-            transform=cmds.rename(om.MFnDagNode(dag.parent(0)).fullPathName(),TARGET)
-            cmds.setAttr(transform+".scale",100,100,100,type="double3")
+            mesh_fn=om.MFnMesh(obj)
+            shape_path=mesh_fn.fullPathName()
+            parents=cmds.listRelatives(shape_path,parent=True,fullPath=True) or []
+            if parents:
+                created_transform=parents[0]
+            else:
+                # Defensive fallback for hosts returning the transform directly.
+                created_transform=om.MFnDagNode(obj).fullPathName()
+            transform=cmds.rename(created_transform,TARGET)
+            # SMPL-X coordinates are meters; Maya default scene units are cm.
+            # Only do this on first creation, never multiply existing scale.
+            linear_unit=cmds.currentUnit(query=True,linear=True)
+            meters_to_scene={"mm":1000.0,"cm":100.0,"m":1.0,
+                             "km":0.001,"in":39.3700787402,
+                             "ft":3.280839895,"yd":1.0936132983}
+            factor=meters_to_scene.get(linear_unit)
+            if factor is None:
+                raise ValueError("Unsupported Maya scene linear unit: "+str(linear_unit))
+            cmds.setAttr(transform+".scale",factor,factor,factor,type="double3")
+            print("[BDFR SMPL-X] Created {}, unit={}, scale={}".format(
+                transform,linear_unit,factor))
         # Keep scale 100 in centimetre Maya scene; position lowest Y exactly at ground.
         bbox=cmds.exactWorldBoundingBox(transform)
         cmds.move(0,-bbox[1],0,transform,relative=True,worldSpace=True)
