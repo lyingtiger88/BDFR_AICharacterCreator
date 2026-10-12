@@ -66,6 +66,7 @@ class PersistentController(QtCore.QObject):
         proc.readyReadStandardOutput.connect(self._received)
         proc.readyReadStandardError.connect(self._stderr)
         proc.finished.connect(self._stopped)
+        proc.errorOccurred.connect(self._process_error)
         proc.start()
         self.process=proc
         self.engine_key=key
@@ -191,11 +192,32 @@ class PersistentController(QtCore.QObject):
             error=bytes(self.process.readAllStandardError()).decode("utf-8","replace")
             if error.strip():print("[BDFR SMPL-X stderr]",error[-1500:])
 
+    def _process_error(self, error):
+        if self.closed:return
+        self.last_error="SMPL-X Python process failed: {}".format(error)
+        import maya.cmds as cmds
+        cmds.warning("[BDFR SMPL-X] "+self.last_error)
+        # An invalid executable or server crash must not spin in a restart loop.
+        self.pending=False
+        self.inflight=False
+        self.timer.stop()
+
     def _stopped(self,*_):
         if self.closed:return
+        process=self.process
+        code=process.exitCode() if process else -1
         self.inflight=False
         self.process=None
-        if self.pending:self.timer.start(100)
+        if code!=0:
+            self.last_error="SMPL-X server exited (code {}). Check Script Editor stderr.".format(code)
+            import maya.cmds as cmds
+            cmds.warning("[BDFR SMPL-X] "+self.last_error)
+            self.pending=False
+            self.timer.stop()
+        elif self.pending:
+            # A clean exit can be restarted on a later user request.
+            self.pending=False
+            self.timer.stop()
 
     def close(self):
         self.closed=True
