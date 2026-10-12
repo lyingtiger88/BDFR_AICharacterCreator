@@ -171,19 +171,20 @@ class PersistentController(QtCore.QObject):
             transform=TARGET
         else:
             ids=struct.unpack("<"+"i"*(face_count*3),faces_raw)
-            # MFnMesh.create() may return the mesh shape or its parent transform,
-            # depending on the Maya API context. Resolve from the actual mesh
-            # shape rather than blindly calling parent(0) on the returned object.
-            obj=om.MFnMesh().create(points,[3]*face_count,list(ids))
-            mesh_fn=om.MFnMesh(obj)
-            shape_path=mesh_fn.fullPathName()
-            parents=cmds.listRelatives(shape_path,parent=True,fullPath=True) or []
-            if parents:
-                created_transform=parents[0]
-            else:
-                # Defensive fallback for hosts returning the transform directly.
-                created_transform=om.MFnDagNode(obj).fullPathName()
-            transform=cmds.rename(created_transform,TARGET)
+            # Explicitly parent the generated mesh under our named transform.
+            # The previous MFnMesh.create() used Maya's implicit parent,
+            # yielding orphan polySurface meshes on subsequent evaluations.
+            transform=cmds.createNode("transform",name=TARGET)
+            try:
+                selection=om.MSelectionList()
+                selection.add(transform)
+                parent_obj=selection.getDependNode(0)
+                om.MFnMesh().create(points,[3]*face_count,list(ids),parent=parent_obj)
+                _shape(transform)  # Verify exactly one visible mesh shape.
+            except Exception:
+                if cmds.objExists(transform):
+                    cmds.delete(transform)
+                raise
             # SMPL-X coordinates are meters; Maya default scene units are cm.
             # Only do this on first creation, never multiply existing scale.
             linear_unit=cmds.currentUnit(query=True,linear=True)
