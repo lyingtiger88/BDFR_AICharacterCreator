@@ -157,7 +157,14 @@ def launch():
         # Avoid the legacy OBJ path silently discarding sculpt morphs.
         p=cmds.textFieldGrp(py,q=True,text=True)
         m=cmds.textFieldGrp(models,q=True,text=True)
+        if not Path(p).is_file() or not Path(m).is_dir():
+            cmds.confirmDialog(title="SMPL-X setup required",
+                message="Check Python and Model weights paths before creating a character.",
+                button=["OK"])
+            return
         save_config(p,m)
+        print("[BDFR SMPL-X] Create requested: model={}, weights={}".format(
+            cmds.optionMenu(option,q=True,value=True),m))
         if new and cmds.objExists(TARGET):
             cmds.delete(TARGET)
             STATE["gender"]=None
